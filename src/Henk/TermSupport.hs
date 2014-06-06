@@ -1,4 +1,4 @@
-module TermSupport
+module Henk.TermSupport
     ( DeltaRule(..)
     , DeltaRules
     , RedexInf(..)
@@ -16,7 +16,7 @@ module TermSupport
     , equal
     ) where
 
-import HenkAS
+import Henk.AS
 
 --------------------------------------------------------------------------------  
 -- Rules

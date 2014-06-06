@@ -1,4 +1,4 @@
-module HenkInt
+module Henk.Int
     ( intmain
     , prog2DeltaRules
     , reduce_to_whnf
@@ -6,9 +6,9 @@ module HenkInt
     ) where
 
 import Control.Monad (mplus)
-import HenkAS
-import HenkPP (expr2string)
-import TermSupport
+import Henk.AS
+import Henk.PP (expr2string)
+import Henk.TermSupport
 
 
 --------------------------------------------------------------------------------
@@ -19,9 +19,9 @@ intmain deltaRules _
   = do{ex     <- case lookup'' (TVar (Var "main") Unknown) deltaRules of
                   Just deltarule -> return $ (reduceRedex deltaRules (DeltaRedex deltarule) (VarExpr $ TVar (Var "main") Unknown))
                   Nothing         -> error "main not defined!!"                     
-      ;putStr $ "\nEvaluating: \n" ++ HenkPP.expr2string ex ++ "\n\n"
+      ;putStr $ "\nEvaluating: \n" ++ expr2string ex ++ "\n\n"
       ;nf     <- return $ reduce_to_mnf deltaRules ex
-      ;putStr $ "Result: \n" ++ HenkPP.expr2string nf
+      ;putStr $ "Result: \n" ++ expr2string nf
       ;return nf
       }
 

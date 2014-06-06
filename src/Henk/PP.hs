@@ -1,13 +1,12 @@
-module HenkPP
+module Henk.PP
     ( program2string
     , expr2string
     , var2string
     , tVar2string
     ) where
 
---import Pretty -- John Hughes pretty printing library
 import Text.PrettyPrint
-import HenkAS
+import Henk.AS
 
 
 program2string :: Program -> String

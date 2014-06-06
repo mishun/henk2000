@@ -1,7 +1,7 @@
-module Classification where
+module Henk.Classification where
 
-import HenkAS
-import TypeSystems
+import Henk.AS
+import Henk.TypeSystems
 
 crossproduct :: [a] -> [(a,a)]
 crossproduct s = [(s1,s2) | s1 <- s, s2 <- s]

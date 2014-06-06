@@ -1,4 +1,4 @@
-module HenkAS
+module Henk.AS
     ( Program(..)
     , TDecl(..)
     , VDecl(..)

@@ -1,14 +1,14 @@
-module HenkTC
+module Henk.TC
     ( tcmain
     , tcexpr
     ) where
 
-import HenkAS
-import HenkPP (var2string, tVar2string, expr2string)
-import HenkInt (reduce_to_whnf, reduce_to_nf)
-import TermSupport
-import Classification
-import TypeSystems (Specification)
+import Henk.AS
+import Henk.PP (var2string, tVar2string, expr2string)
+import Henk.Int (reduce_to_whnf, reduce_to_nf)
+import Henk.TermSupport
+import Henk.Classification
+import Henk.TypeSystems (Specification)
 
  
 --------------------------------------------------------------------------------  

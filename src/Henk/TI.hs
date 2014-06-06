@@ -1,13 +1,13 @@
-module HenkTI
+module Henk.TI
     ( timain
     , tiexpr
     ) where
 
 import Control.Monad (mapAndUnzipM)
-import HenkAS
-import HenkPP(var2string)
-import TermSupport (SSubst(..), applyStrongSubst)
-import HenkPP(expr2string)
+import Henk.AS
+import Henk.PP (var2string, expr2string)
+import Henk.TermSupport (SSubst(..), applyStrongSubst)
+
 trace _ y = y
 
 type Annotation  = (Var,Expr)

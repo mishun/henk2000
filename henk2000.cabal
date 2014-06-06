@@ -14,16 +14,15 @@ library
         parsec
     hs-source-dirs:     src
     exposed-modules:
-        Classification,
-        HenkAS,
-        HenkInt,
-        HenkParser,
-        HenkPP,
-        HenkTC,
-        HenkTI,
-        ParseError,
-        TermSupport,
-        TypeSystems
+        Henk.Classification,
+        Henk.AS,
+        Henk.Int,
+        Henk.Parser,
+        Henk.PP,
+        Henk.TC,
+        Henk.TI,
+        Henk.TermSupport,
+        Henk.TypeSystems
 
 
 executable Henk2000

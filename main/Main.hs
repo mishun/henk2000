@@ -8,12 +8,12 @@
 module Main (main) where
 
 import Text.ParserCombinators.Parsec (parseFromFile, parse)
-import HenkParser (program, single_expr)
-import HenkPP (program2string, expr2string)
-import HenkInt (intmain, prog2DeltaRules)
-import HenkTI (timain, tiexpr)
-import HenkTC (tcmain, tcexpr)
-import TypeSystems (Specification, cc)
+import Henk.Parser (program, single_expr)
+import Henk.PP (program2string, expr2string)
+import Henk.Int (intmain, prog2DeltaRules)
+import Henk.TI (timain, tiexpr)
+import Henk.TC (tcmain, tcexpr)
+import Henk.TypeSystems (Specification, cc)
 
 
 welcome :: String
@@ -32,7 +32,7 @@ typeSystem = cc
 main :: IO ()
 main = do{ putStr welcome
          ; putStr "Loading prelude.henk...\n\n"
-         ; prelude_result <- parseFromFile HenkParser.program "prelude.henk"
+         ; prelude_result <- parseFromFile program "prelude.henk"
          ; prelude_prog   <- case prelude_result of           
                                Left  err   -> do{putStr (show(err)); return $ error ""}             
                                Right prog  -> return prog             
@@ -47,7 +47,7 @@ main = do{ putStr welcome
          ; fnprog   <- getLine
          ; fnprog   <- if fnprog=="" then return "prog.henk" else return $ fnprog
          ; putStr   $ "\nParsing "++fnprog++"...\n\n"
-         ; prog     <- parseFromFile HenkParser.program fnprog   
+         ; prog     <- parseFromFile program fnprog   
          ; prog     <- case prog of           
                         Left err -> do{ putStr (show(err)); return $ error ""}             
                         Right d  -> return d
@@ -60,7 +60,7 @@ main = do{ putStr welcome
          ; putStr $ "Type checking...\n"
          ; (er,_) <- return $ tcmain (prog_rules++prelude_rules) typeSystem prog
          ; putErrors er
-         ; ev_expr  <- (HenkInt.intmain (prog_rules++prelude_rules) prog)
+         ; ev_expr  <- (intmain (prog_rules++prelude_rules) prog)
          ; putStr   $ ""
          } 
 
@@ -92,7 +92,7 @@ ti s =
                 Left  err -> do{putStr (show(err)); return $ error ""}
                 Right ex  -> return ex
          ; putStr "Loading prelude.henk...\n\n"
-         ; prelude_result <- parseFromFile HenkParser.program "prelude.henk"
+         ; prelude_result <- parseFromFile program "prelude.henk"
          ; prelude_prog   <- case prelude_result of           
                                Left  err   -> do{putStr (show(err)); return $ error ""}             
                                Right prog  -> return prog             
@@ -107,7 +107,7 @@ ti s =
          ; fnprog   <- return "" --getLine
          ; fnprog   <- if fnprog=="" then return "prog.henk" else return $ fnprog
          ; putStr   $ "\nParsing "++fnprog++"...\n\n"
-         ; prog     <- parseFromFile HenkParser.program fnprog   
+         ; prog     <- parseFromFile program fnprog   
          ; prog     <- case prog of           
                         Left err -> do{ putStr (show(err)); return $ error ""}             
                         Right d  -> return d

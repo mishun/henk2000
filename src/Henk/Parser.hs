@@ -1,4 +1,4 @@
-module HenkParser
+module Henk.Parser
     ( program
     , single_expr
     ) where
@@ -6,7 +6,7 @@ module HenkParser
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Language
 import Text.ParserCombinators.Parsec.Token
-import HenkAS
+import Henk.AS
 
 
 henk :: LanguageDef st

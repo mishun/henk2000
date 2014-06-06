@@ -1,10 +1,10 @@
-module TypeSystems
+module Henk.TypeSystems
     ( Specification
     , lar, l2r, lor, ccr
     , la, l2, lo, cc
     ) where
 
-import HenkAS
+import Henk.AS
 
 type Specification = (Sorts, Axioms, Rules)
 type Sorts         = [Sort]

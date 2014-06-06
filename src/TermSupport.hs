@@ -1,8 +1,23 @@
-module TermSupport where
+module TermSupport
+    ( DeltaRule(..)
+    , DeltaRules
+    , RedexInf(..)
+    , isRedex
+    , lookup''
+    , isApp
+    , isLam
+    , isPi
+    , SSubst(..)
+    , SubstC(..)
+    , leftMost
+    , applySubToLeftMost
+    , applySStrongSubst
+    , applyStrongSubst
+    , equal
+    ) where
 
 import HenkAS
-import HenkParser()
-import Parser()
+
 --------------------------------------------------------------------------------  
 -- Rules
 --------------------------------------------------------------------------------

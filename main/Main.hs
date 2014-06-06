@@ -7,12 +7,12 @@
 
 module Main (main) where
 
-import Parser (parse, parseFromFile)
-import HenkParser(program,single_expr)
-import HenkPP(expr2string)
-import HenkInt(intmain,prog2DeltaRules)
-import HenkTI(timain,tiexpr)
-import HenkTC(tcmain,tcexpr)
+import Text.ParserCombinators.Parsec (parseFromFile, parse)
+import HenkParser (program, single_expr)
+import HenkPP (program2string, expr2string)
+import HenkInt (intmain, prog2DeltaRules)
+import HenkTI (timain, tiexpr)
+import HenkTC (tcmain, tcexpr)
 import TypeSystems (Specification, cc)
 
 
@@ -51,6 +51,7 @@ main = do{ putStr welcome
          ; prog     <- case prog of           
                         Left err -> do{ putStr (show(err)); return $ error ""}             
                         Right d  -> return d
+         ; putStrLn $ program2string prog
          ; prog_rules  <- return $ prog2DeltaRules prog              
          ; putStr $ "Type inferencing...\n"
          ; (er,(prog,_)) <- return $ timain prelude_anns prog    

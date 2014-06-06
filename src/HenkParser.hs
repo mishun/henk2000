@@ -3,16 +3,40 @@ module HenkParser
     , single_expr
     ) where
 
-import Parser
-import ParseToken
+import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec.Language
+import Text.ParserCombinators.Parsec.Token
 import HenkAS
-import HenkPP ()
+
+
+henk :: LanguageDef st
+henk  = emptyDef
+		{ commentStart	  = "{-"
+		, commentEnd	  = "-}"
+		, commentLine	  = "--"
+		, nestedComments  = True
+		, identStart	  = letter
+		, identLetter	  = alphaNum <|> oneOf "_'"
+		, opStart         = opLetter henk
+		, opLetter        = oneOf ":=\\->/|~.*[]"
+		, reservedOpNames = ["::","=","\\","->","=>","/\\","\\/"
+		                    ,"|~|",".",":","*","[]"]
+		, reservedNames   = [ "case", "data", "letrec", "type"
+				    , "import", "in", "let", "of", "at", "Int"
+				    ]
+                , caseSensitive  = True
+		}
+
+
+henkT :: TokenParser st
+henkT = makeTokenParser henk
+
 
 ----------------------------------------------------------------
 -- The Program
 ----------------------------------------------------------------
 program :: Parser Program
-program =  do{whiteSpace
+program =  do{whiteSpace henkT
              ;(tds,vds) <- manyAlternate tDecl vDecl
              ;eof
              ;return $ Program tds vds
@@ -29,10 +53,10 @@ manyAlternate pa pb = do{as<-many1 pa; (as',bs') <- manyAlternate pa pb; return 
 -- Type Declaration
 ----------------------------------------------------------------
 tDecl :: Parser TDecl
-tDecl =  do{reserved "data"
+tDecl =  do{reserved henkT "data"
            ;t <- bindVar
-           ;_ <- symbol "="
-           ;ts <- braces $ semiSep1 bindVar 
+           ;_ <- symbol henkT "="
+           ;ts <- braces henkT $ semiSep1 henkT bindVar 
            ;return $ TDecl t ts
            }
            <?> "type declaration"
@@ -44,9 +68,9 @@ vDecl :: Parser VDecl
 vDecl  = letnonrec <?> "value Declaration"
 
 letnonrec :: Parser VDecl
-letnonrec  = do{reserved "let"
+letnonrec  = do{reserved henkT "let"
                ;tv <- bindVar'
-               ;_ <- symbol "="
+               ;_ <- symbol henkT "="
                ;ex <- expr
                ;return $ VDecl tv ex
                }
@@ -71,13 +95,13 @@ atomExpr =  choice
             ,litExpr
             ,sort
             ,unknown
-            ,parens expr
+            ,parens henkT expr
             ]
             <?> "atomic expression"
 
 --single expression
 single_expr :: Parser Expr
-single_expr =do { whiteSpace
+single_expr =do { whiteSpace henkT
                 ; ex <- expr
                 ; return ex
                 }
@@ -94,20 +118,20 @@ appExpr = do{atoms <- many1 atomExpr;
 -- (Capital) Lambda Expression
 ----------------------------------------------------------------
 lamExpr :: Parser Expr
-lamExpr =  do{_ <- symbol "\\" <|> symbol "/\\" <|> symbol "λ" <|> symbol "Λ"
-            ;tvs <- commaSep1 bindVar
-            ;_ <- symbol "."
-            ;e <- expr 
-            ;return $ foldr LamExpr e tvs}        
+lamExpr =  do{_ <- symbol henkT "\\" <|> symbol henkT "/\\" <|> symbol henkT "λ" <|> symbol henkT "Λ"
+            ;tvs <- commaSep1 henkT bindVar
+            ;_ <- symbol henkT "."
+            ;e <- expr
+            ;return $ foldr LamExpr e tvs}
             <?> "lambda expression"
 
 ----------------------------------------------------------------
 -- Pi Expression / ForAll Expression
 ----------------------------------------------------------------
 piExpr :: Parser Expr
-piExpr  = do{ _ <- (symbol "|~|" <|> symbol "∏" <|> symbol "𝚷") <|> token (symbol "\\/" <|> symbol "∀")
-          ;tvs <- sepBy1 bindVar comma
-          ;_ <- symbol "."
+piExpr  = do{ _ <- (symbol henkT "|~|" <|> symbol henkT "∏" <|> symbol henkT "𝚷") <|> (symbol henkT "\\/" <|> symbol henkT "∀")
+          ;tvs <- sepBy1 bindVar (comma henkT)
+          ;_ <- symbol henkT "."
           ;e <- expr 
           ;return $ foldr PiExpr e tvs}   
           <?> "pi expression"
@@ -119,7 +143,7 @@ piExpr  = do{ _ <- (symbol "|~|" <|> symbol "∏" <|> symbol "𝚷") <|> token (
 funExpr :: Parser Expr
 funExpr = chainr1 appExpr arrow <?> "function expression"
  where
- arrow = do{_ <- symbol "->"
+ arrow = do{_ <- symbol henkT "->"
            ; return $ \ex1 ex2 -> PiExpr (TVar Anonymous ex1) ex2
            }
           
@@ -129,11 +153,11 @@ funExpr = chainr1 appExpr arrow <?> "function expression"
 -- Case Expression
 ---------------------------------------------------------------- 
 caseExpr :: Parser Expr
-caseExpr = do{reserved "case"
+caseExpr = do{reserved henkT "case"
              ;ex  <- expr
-             ;reserved "of"
-             ;as  <- braces $ semiSep1 alt
-             ;case_type <- option Unknown (do{reserved ":"; case_type <- expr ; return case_type}) 
+             ;reserved henkT "of"
+             ;as  <- braces henkT $ semiSep1 henkT alt
+             ;case_type <- option Unknown (do {reserved henkT ":"; case_type <- expr ; return case_type}) 
              ;return $ CaseExpr ex as case_type
              }
              <?> "Case Expression" 
@@ -142,7 +166,7 @@ alt :: Parser Alt
 alt = do{tc   <- boundVar
         ;tcas' <- many var
 	;tcas <- return $ map (\v -> TVar v Unknown) tcas'
-        ;_ <- symbol "=>"
+        ;_ <- symbol henkT "=>"
         ;res <- expr
         ;return $ Alt tc tcas [] res
         }
@@ -162,14 +186,14 @@ varExpr = do{tv <- boundVar
 -- Variable
 ----------------------------------------------------------------
 var :: Parser Var
-var = do{v <- identifier
+var = do{v <- identifier henkT
         ;return $ Var v
         }
 
 anonymousvar :: Parser Var
 anonymousvar = 
-      do{_ <- symbol "_"
-        ;v <- option "" identifier
+      do{_ <- symbol henkT "_"
+        ;v <- option "" (identifier henkT)
         ;return $ Var ('_':v)
         }
 
@@ -197,7 +221,7 @@ bindVar' = do{v <- (anonymousvar <|> var)
              <?> "variable"
          
 isOfType :: Parser Expr
-isOfType =  do{_ <- symbol ":"
+isOfType =  do{_ <- symbol henkT ":"
               ;aex <- expr
               ;return aex}
               
@@ -227,11 +251,11 @@ litExpr = do {l <- lit
 -- Literal
 ----------------------------------------------------------------
 lit :: Parser Lit
-lit = do{i <- natural
+lit = do{i <- natural henkT
         ;return $ LitInt i
         }                    
       <|>
-      do{reserved "Int"
+      do{reserved henkT "Int"
         ;return $ IntType
         }                           
 
@@ -245,20 +269,20 @@ sort = do{s <-    try (sortNum)
      ;return $ SortExpr s}   
 
 sortNum :: Parser Sort
-sortNum = do{ _ <- symbol "*"
-            ; n <- natural
+sortNum = do{ _ <- symbol henkT "*"
+            ; n <- natural henkT
             ; return $ SortNum n
             }
 
 
 star :: Parser Sort
-star = do{ _ <- symbol "*"
+star = do{ _ <- symbol henkT "*"
          ; return Star
          }
 
 
 box  :: Parser Sort
-box  = do{ _ <- symbol "||" <|> symbol "□"
+box  = do{ _ <- symbol henkT "||" <|> symbol henkT "□"
          ; return Box
          } 
 
@@ -266,6 +290,6 @@ box  = do{ _ <- symbol "||" <|> symbol "□"
 -- Unknown
 ----------------------------------------------------------------
 unknown  :: Parser Expr
-unknown  = do{ _ <- symbol "?"
+unknown  = do{ _ <- symbol henkT "?"
              ; return Unknown
              } 

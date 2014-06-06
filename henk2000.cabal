@@ -10,7 +10,8 @@ library
     ghc-options:        -Wall
     build-depends:
         base >=4.6,
-        pretty
+        pretty,
+        parsec
     hs-source-dirs:     src
     exposed-modules:
         Classification,
@@ -21,11 +22,7 @@ library
         HenkTC,
         HenkTI,
         ParseError,
-        Parser,
-        ParseToken,
-        StdTokenDef,
         TermSupport,
-        TokenDef,
         TypeSystems
 
 
@@ -34,6 +31,7 @@ executable Henk2000
     ghc-options:        -Wall
     build-depends:
         base >=4.6,
+        parsec,
         henk2000
     hs-source-dirs:     main
     main-is:            Main.hs

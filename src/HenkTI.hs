@@ -1,13 +1,14 @@
-module HenkTI where
+module HenkTI
+    ( timain
+    , tiexpr
+    ) where
 
+import Control.Monad (mapAndUnzipM)
 import HenkAS
 import HenkPP(var2string)
-import TermSupport(DeltaRules,SSubst(..),Subst,applyStrongSubst)
-import Control.Monad(mapAndUnzipM,foldM)
-import Parser(parse)
-import HenkParser(single_expr)
+import TermSupport (SSubst(..), applyStrongSubst)
 import HenkPP(expr2string)
-trace x y = y
+trace _ y = y
 
 type Annotation  = (Var,Expr)
 type Annotations = [Annotation]
@@ -23,7 +24,7 @@ tVar2Ann (TVar v ex) = (v,ex)
 newtype TI t = TI (Annotations -> (Errors,t) )
 
 instance Monad TI where
- return x      = TI (\ann -> ([],x) )
+ return x      = TI (\ _ -> ([], x))
  TI f >>= g    = TI (\ann -> let  (erf,ta)        = f ann
                                   TI gta          = g ta
                                   (erg,tb)        = gta ann
@@ -31,7 +32,7 @@ instance Monad TI where
                                   (erf++erg,tb))
                        
 runTI        :: Annotations -> Program -> TI a -> (Errors,a)
-runTI anns p (TI f) = (er,result)
+runTI anns _ (TI f) = (er,result)
  where (er,result) = f anns
 
 timain :: Annotations -> Program -> (Errors,(Program,Annotations))
@@ -41,7 +42,7 @@ tiexpr :: Annotations -> Program -> Expr -> (Errors,Expr)
 tiexpr anns p ex = runTI anns p (expr p ex)
 
 addErrorMsg :: String -> TI ()
-addErrorMsg s = TI (\ann -> ([s],()))
+addErrorMsg s = TI (\ _ -> ([s], ()))
 
 withAnn :: Annotation -> TI a -> TI a
 withAnn ann (TI f) = (TI (\anns -> f (ann:anns))) 
@@ -114,7 +115,7 @@ vDeclBody p (VDecl tv ex)
 
                         
 bindVar :: Program -> TVar -> TI TVar
-bindVar p tv@(TVar v ex) = case ex of
+bindVar p (TVar v ex) = case ex of
                            Unknown -> do{addErrorMsg $ "Warning: Unannotated bind variable: "++var2string v
                                         ; return $ TVar v Unknown}
                            _       -> do{ ex <- expr p ex
@@ -152,6 +153,7 @@ caseExpr p (CaseExpr ex as ct) =
     ;as  <- mapM (\a -> alt p a) as
     ;ct  <- expr p ct  
     ;return $ CaseExpr ex as ct}
+caseExpr _ _ = undefined
  
  
 alt :: Program -> Alt -> TI Alt
@@ -163,11 +165,6 @@ alt p (Alt dc tcas dcas res) =
       ;return $ Alt dc tcas dcas res}
 
 match :: Expr -> [TVar] -> [TVar]
-match (PiExpr ptv@(TVar v t) expr) (tv@(TVar v1 _):vs) = (TVar v1 t) : (match (trace (expr2string $  (applyStrongSubst  [Sub ptv $ VarExpr (TVar v1 t)] expr)) (applyStrongSubst  [Sub ptv $ VarExpr (TVar v1 t)] expr)) vs)
+match (PiExpr ptv@(TVar _ t) expr) ((TVar v1 _):vs) = (TVar v1 t) : (match (trace (expr2string $  (applyStrongSubst  [Sub ptv $ VarExpr (TVar v1 t)] expr)) (applyStrongSubst  [Sub ptv $ VarExpr (TVar v1 t)] expr)) vs)
 match _ _ = []
 
- 
-
-
- 
-                              

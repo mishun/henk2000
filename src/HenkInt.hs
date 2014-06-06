@@ -1,18 +1,21 @@
-module HenkInt where
+module HenkInt
+    ( intmain
+    , prog2DeltaRules
+    , reduce_to_whnf
+    , reduce_to_nf
+    ) where
 
+import Control.Monad (mplus)
 import HenkAS
-import HenkPP(expr2string)
+import HenkPP (expr2string)
 import TermSupport
-import HenkParser(expr) --tijdelijk
-import Parser       --tijdelijk
-import Control.Monad
-import Debug.Trace
- 
+
+
 --------------------------------------------------------------------------------
 -- Main
 --------------------------------------------------------------------------------
 intmain :: DeltaRules -> Program -> IO Expr
-intmain deltaRules program 
+intmain deltaRules _
   = do{ex     <- case lookup'' (TVar (Var "main") Unknown) deltaRules of
                   Just deltarule -> return $ (reduceRedex deltaRules (DeltaRedex deltarule) (VarExpr $ TVar (Var "main") Unknown))
                   Nothing         -> error "main not defined!!"                     
@@ -41,23 +44,29 @@ reduceRedex dr ri ex = case ri of
  BetaRedex      -> reduceBeta ex        
  CaseRedex      -> reduceCase dr ex                                                                 
  DeltaRedex dr1 -> reduceDeltaRule ex dr1
+ NoRedex        -> error "NoRedex"
  	      
 reduceBeta :: Expr -> Expr
 reduceBeta (AppExpr  (LamExpr tv ex1) ex2) = applySubst [(Sub tv ex2)] ex1  		      
+reduceBeta _ = undefined
 
 reduceCase :: DeltaRules -> Expr -> Expr
 reduceCase dr ce@(CaseExpr ex alts _) =
- case lookupA whnf alts of
-  Just (Alt tc tcas dcas res) -> applySubToLeftMost [Sub tc (foldr LamExpr res (tcas++dcas))] whnf
-  Nothing                     -> error $ "runtime error: missing alternative (" ++ expr2string (leftMost whnf) ++") in case expression!!\n" ++ (expr2string ce)
- where whnf = reduce_to_whnf dr ex
+ case lookupA whnf' alts of
+  Just (Alt tc tcas dcas res) -> applySubToLeftMost [Sub tc (foldr LamExpr res (tcas++dcas))] whnf'
+  Nothing                     -> error $ "runtime error: missing alternative (" ++ expr2string (leftMost whnf') ++") in case expression!!\n" ++ (expr2string ce)
+ where whnf' = reduce_to_whnf dr ex
+reduceCase _ _ = undefined
 
 lookupA :: Expr -> [Alt] -> Maybe Alt
 lookupA ex alts = lookupA' (leftMost ex) alts
-lookupA' ex ((a@(Alt  tc@(TVar va _) _ _ _)):as) = case ex of 
+
+lookupA' :: Expr -> [Alt] -> Maybe Alt
+lookupA' ex ((a@(Alt  (TVar va _) _ _ _)):as) = case ex of 
  (VarExpr (TVar v _))  | v==va      -> Just  a
                        | otherwise  -> lookupA' ex as
-lookupA' ex []    = Nothing
+ _                                  -> undefined
+lookupA' _ []    = Nothing
 
 
    
@@ -81,14 +90,16 @@ eval dr ex
  | otherwise                        = Nothing                                                     
  where redexinf = isRedex dr ex
        reduced  = (reduceRedex dr redexinf ex)
-       
 
+
+evalApp :: DeltaRules -> Expr -> Maybe Expr
 evalApp dr (AppExpr ex1 ex2) = 
  case (eval dr ex1) of 
    Just ex1r -> mplus (eval dr (AppExpr ex1r ex2)) (Just (AppExpr ex1r ex2)) 
    Nothing   -> case (eval dr ex2) of
                                  Just ex2r   -> Just $ AppExpr ex1 ex2r
-                                 Nothing     -> Nothing  
+                                 Nothing     -> Nothing
+evalApp _ _ = undefined
                     
 
 -- Reducing using the normal strategy until a "eval" head normal form is reached                              
@@ -116,11 +127,13 @@ weak dr ex
        reduced  = (reduceRedex dr redexinf ex)
       
 
+weakApp :: DeltaRules -> Expr -> Maybe Expr
 weakApp dr (AppExpr ex1 ex2) = 
  case (weak dr ex1) of 
    Just ex1r -> mplus (weak dr (AppExpr ex1r ex2))
                       (Just (AppExpr ex1r ex2)) 
    Nothing   -> Nothing
+weakApp _ _ = undefined
 
 -- Reducing using the normal strategy until a weak head normal form is reached                                
 reduce_to_whnf :: DeltaRules -> Expr -> Expr
@@ -152,15 +165,18 @@ strong dr ex
  | otherwise                               = Nothing                                                    
  where redexinf = isRedex dr ex
        reduced  = (reduceRedex dr redexinf ex)
-       		                                
-strongApp dr ex@(AppExpr ex1 ex2) = 
+
+strongApp :: DeltaRules -> Expr -> Maybe Expr       		                                
+strongApp dr (AppExpr ex1 ex2) = 
  case strong dr ex1 of 
    Just ex1r -> mplus (strong dr (AppExpr ex1r ex2)) (Just $ AppExpr ex1r ex2)
    Nothing   -> case (strong dr ex2) of
                   Just ex2r -> Just $ AppExpr ex1 ex2r 
-                  Nothing   -> Nothing    
- 
+                  Nothing   -> Nothing
+strongApp _ _ = undefined
 
+
+strongLam :: [DeltaRule] -> Expr -> Maybe Expr
 strongLam dr (LamExpr (TVar var exv) ex) 
  = if
      (mexvr==Nothing && mexr==Nothing)
@@ -173,6 +189,7 @@ strongLam dr (LamExpr (TVar var exv) ex)
    where  
     mexvr = strong dr exv
     mexr  = strong dr ex
+strongLam _ _ = undefined
 
 -- Reducing using the normal strategy until a normal form is reached                          
 reduce_to_nf :: DeltaRules -> Expr -> Expr
@@ -181,6 +198,3 @@ reduce_to_nf dr ex = case  mplus (strong dr mnf) (Just mnf) of
                       Nothing   -> ex
 		      where mnf = reduce_to_mnf dr ex 
 
- 
-
- 

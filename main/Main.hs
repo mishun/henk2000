@@ -5,18 +5,18 @@
 -- e-mail: jw@cs.uu.nl
 ---------------------------------------------------------------------
 
-module Main where
+module Main (main) where
 
-import Parser
-import HenkAS
+import Parser (parse, parseFromFile)
 import HenkParser(program,single_expr)
 import HenkPP(expr2string)
 import HenkInt(intmain,prog2DeltaRules)
 import HenkTI(timain,tiexpr)
 import HenkTC(tcmain,tcexpr)
-import TypeSystems
+import TypeSystems (Specification, cc)
 
 
+welcome :: String
 welcome = "__   __ ______ __  __ __      ______________________________________________\n"++
           "||   || ||_ || ||  || ||/     Henk 2000: Based on Pure Type Systems     \n"++
           "||___|| ||- __ ||\\ || ||\\                                               \n"++
@@ -25,7 +25,9 @@ welcome = "__   __ ______ __  __ __      _______________________________________
           "||   ||                       ______________________________________________\n\n"
 
 
+typeSystem :: Specification
 typeSystem = cc
+
 
 main :: IO ()
 main = do{ putStr welcome
@@ -62,19 +64,23 @@ main = do{ putStr welcome
          } 
 
 
-putErrors xs = do {mapM (\s -> putStr $ s ++ "\n") (take 1 xs)
+putErrors :: [String] -> IO ()
+putErrors xs = do {mapM_ (\s -> putStr $ s ++ "\n") (take 1 xs)
                   ;putStr $ "Numbers of errors: "++(show (length xs))++"\n"
                   ;return ()}
-         
+
+
 add_line_numbers :: String -> String
 add_line_numbers s  =  (concat.(map (\(x,y) -> x++y)).(zip $ numbers l).(map (++"\n" ))) (lines s)
                        where     
                        l = length (lines s)
 
+
 numbers :: Int -> [String]
-numbers l = [ (zeros i) ++ (show i) ++ ": " | i <- [1..]]
+numbers l = [ (zeros i) ++ (show i) ++ ": " | i <- [1 :: Int ..]]
             where
-            zeros i = take (length (show l) - (length (show i))) ['0' | j <- [0..]]
+            zeros i = take (length (show l) - (length (show i))) ['0' | _ <- [0 :: Int ..]]
+
 
 -- ti performs type inference on a single expression
 ti :: String -> IO ()
@@ -122,10 +128,4 @@ ti s =
          ; putErrors er
          ; putStr "\n"
          ; putStr $ (expr2string ex) ++ " has type: " ++(expr2string ext)
-         } 
-
-
-
-
-
- 
+         }

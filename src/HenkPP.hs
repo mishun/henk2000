@@ -1,9 +1,14 @@
- module HenkPP where
+module HenkPP
+    ( program2string
+    , expr2string
+    , var2string
+    , tVar2string
+    ) where
 
 import Pretty -- John Hughes pretty printing library
 import HenkAS
- 
- 
+
+
 program2string :: Program -> String
 program2string = (render.program) 
 
@@ -58,7 +63,6 @@ expr ex = case ex of
  LitExpr l           -> lit l
  SortExpr s          -> sort s
  Unknown             -> text "?"
- otherwise           -> text $ "expr_otherwise " ++ show otherwise
 
  
 right_parents :: Expr -> Doc -> Doc
@@ -83,6 +87,7 @@ lamExpr :: Expr -> Doc
 lamExpr ex = case ex of
  LamExpr (TVar (Var v) (SortExpr Star)) ex1 -> sep [text "/\\" <> text v <> text ".", expr ex1]
  LamExpr tv ex1                  -> sep [text "\\" <> bindVar tv <> text ".", expr ex1]
+ _                               -> undefined
 
 ----------------------------------------------------------------
 -- Pi,ForAll,Function Expression
@@ -92,6 +97,7 @@ piExpr ex = case ex of
  PiExpr (TVar Anonymous ex1) ex2            -> sep [left_parents_function ex1 (expr ex1), text "->", (expr ex2)]
  PiExpr (TVar (Var v) (SortExpr Star)) ex2  -> sep [text "\\/" <> text v <> text ".", expr ex2]
  PiExpr tv ex1                              -> sep [text "|~|" <> bindVar tv <> text ".", expr ex1]
+ _                                          -> undefined
 
 left_parents_function :: Expr -> Doc -> Doc
 left_parents_function ex d = case ex of
@@ -102,13 +108,14 @@ left_parents_function ex d = case ex of
 -- Case Expression
 ---------------------------------------------------------------- 
 caseExpr :: Expr -> Doc
-caseExpr (CaseExpr ex1 as ex)  =     text "case"
+caseExpr (CaseExpr ex1 as _)  =     text "case"
                                  <+> expr ex1
                                  <+> text "of"
                                  <+> indent (br_list (map alt as))
                                  -- $$  text ":"
-                                 -- <+> expr ex 
-                                 
+                                 -- <+> expr ex
+caseExpr _ = undefined
+
 alt :: Alt -> Doc
 alt (Alt tc tcas dcas ex) =
                          boundVar tc
@@ -130,7 +137,7 @@ bindVar tv = case tv of
 boundVar :: TVar ->  Doc
 boundVar tv = case tv of
    TVar v Unknown         -> var v -- <> text ": ? "                     -- the type of un-annotated bound variables should be derived from the context
-   TVar v e               -> var v -- <> text ":" <> expr e
+   TVar v _               -> var v -- <> text ":" <> expr e
 
 
 var :: Var -> Doc
@@ -168,19 +175,21 @@ sort s = case s of
 
 isList :: Expr -> Bool
 isList ex = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                                -> True
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) elem) rest -> isList rest
- _                                                                        -> False
+ AppExpr (VarExpr (TVar (Var "Nil") _ )) _                             -> True
+ AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) _) rest -> isList rest
+ _                                                                     -> False
 
 list :: Expr -> Doc
 list ex = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                                 -> text "[]"
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) elem) rest  -> text "[" <> expr elem <> listbody rest <> text "]"
+ AppExpr (VarExpr (TVar (Var "Nil") _ )) _                               -> text "[]"
+ AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest  -> text "[" <> expr el <> listbody rest <> text "]"
+ _                                                                       -> undefined
  
 listbody :: Expr -> Doc
 listbody ex  = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                               -> text ""
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) elem) rest -> text "," <> expr elem <> listbody rest      
+ AppExpr (VarExpr (TVar (Var "Nil") _ )) _                              -> text ""
+ AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest -> text "," <> expr el <> listbody rest      
+ _                                                                      -> undefined
 
  
 ----------------------------------------------------------------                  
@@ -189,14 +198,16 @@ listbody ex  = case ex of
 indent :: Doc -> Doc
 indent = nest 2
 
+vsep :: [Doc] -> Doc
 vsep xs  = vcat (map ($$ text "") xs)
  
 br_list :: [Doc] -> Doc
 br_list (x:xs) = sep $    [text "{" <+> x] 
-                       ++ foldr (\x y -> [text ";" <+> x] ++ y) [] (xs)
+                       ++ foldr (\x' y -> [text ";" <+> x'] ++ y) [] (xs)
                        ++ [text"}"]
 br_list []     = text "{}"
 
 comma_sep :: [Doc] -> Doc 
-comma_sep (x:xs) = x <> foldr (\x y -> text "," <+> x <> y) empty (xs)
-                          
+comma_sep (x:xs) = x <> foldr (\x' y -> text "," <+> x' <> y) empty (xs)
+comma_sep [] = undefined
+

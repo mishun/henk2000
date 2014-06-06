@@ -33,7 +33,8 @@ executable Henk2000
     default-language:   Haskell2010
     ghc-options:        -Wall
     build-depends:
-        base >=4.6
-    hs-source-dirs:     src
+        base >=4.6,
+        henk2000
+    hs-source-dirs:     main
     main-is:            Main.hs
 

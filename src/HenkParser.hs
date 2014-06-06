@@ -1,11 +1,13 @@
-module HenkParser where
+module HenkParser
+    ( program
+    , single_expr
+    ) where
 
 import Parser
-import TokenDef
 import ParseToken
 import HenkAS
-import HenkPP()
- 
+import HenkPP ()
+
 ----------------------------------------------------------------
 -- The Program
 ----------------------------------------------------------------
@@ -29,7 +31,7 @@ manyAlternate pa pb = do{as<-many1 pa; (as',bs') <- manyAlternate pa pb; return 
 tDecl :: Parser TDecl
 tDecl =  do{reserved "data"
            ;t <- bindVar
-           ;symbol "="
+           ;_ <- symbol "="
            ;ts <- braces $ semiSep1 bindVar 
            ;return $ TDecl t ts
            }
@@ -44,7 +46,7 @@ vDecl  = letnonrec <?> "value Declaration"
 letnonrec :: Parser VDecl
 letnonrec  = do{reserved "let"
                ;tv <- bindVar'
-               ;symbol "="
+               ;_ <- symbol "="
                ;ex <- expr
                ;return $ VDecl tv ex
                }
@@ -92,9 +94,9 @@ appExpr = do{atoms <- many1 atomExpr;
 -- (Capital) Lambda Expression
 ----------------------------------------------------------------
 lamExpr :: Parser Expr
-lamExpr =  do{symbol "\\" <|> symbol "/\\"  
+lamExpr =  do{_ <- symbol "\\" <|> symbol "/\\"  
             ;tvs <- commaSep1 bindVar
-            ;symbol "."
+            ;_ <- symbol "."
             ;e <- expr 
             ;return $ foldr LamExpr e tvs}        
             <?> "lambda expression"
@@ -103,9 +105,9 @@ lamExpr =  do{symbol "\\" <|> symbol "/\\"
 -- Pi Expression / ForAll Expression
 ----------------------------------------------------------------
 piExpr :: Parser Expr
-piExpr  = do{ (symbol "|~|") <|> token (symbol ("\\/"))
+piExpr  = do{ _ <- (symbol "|~|") <|> token (symbol ("\\/"))
           ;tvs <- sepBy1 bindVar comma
-          ;symbol "."
+          ;_ <- symbol "."
           ;e <- expr 
           ;return $ foldr PiExpr e tvs}   
           <?> "pi expression"
@@ -117,7 +119,7 @@ piExpr  = do{ (symbol "|~|") <|> token (symbol ("\\/"))
 funExpr :: Parser Expr
 funExpr = chainr1 appExpr arrow <?> "function expression"
  where
- arrow = do{symbol "->"; return $ \ex1 ex2 -> PiExpr (TVar Anonymous ex1) ex2}            
+ arrow = do{_ <- symbol "->"; return $ \ex1 ex2 -> PiExpr (TVar Anonymous ex1) ex2}            
           
                          
             
@@ -136,17 +138,18 @@ caseExpr = do{reserved "case"
   
 alt :: Parser Alt
 alt = do{tc   <- boundVar
-        ;tcas <- many var 
-	;tcas <- return $ map (\v -> TVar v Unknown) tcas    
-        ;symbol "=>"
-        ;res <- expr 
-        ;return $ Alt tc tcas [] res 
+        ;tcas' <- many var
+	;tcas <- return $ map (\v -> TVar v Unknown) tcas'
+        ;_ <- symbol "=>"
+        ;res <- expr
+        ;return $ Alt tc tcas [] res
         }
         <?> "case alternative"
               
 ---------------------------------------------------------------- 
 -- Variable Expression
 ---------------------------------------------------------------- 
+varExpr :: Parser Expr
 varExpr = do{tv <- boundVar
             ;return $ VarExpr tv
             }
@@ -163,7 +166,7 @@ var = do{v <- identifier
 
 anonymousvar :: Parser Var
 anonymousvar = 
-      do{symbol "_"
+      do{_ <- symbol "_"
         ;v <- option "" identifier
         ;return $ Var ('_':v)
         }
@@ -192,7 +195,7 @@ bindVar' = do{v <- (anonymousvar <|> var)
              <?> "variable"
          
 isOfType :: Parser Expr
-isOfType =  do{symbol ":"
+isOfType =  do{_ <- symbol ":"
               ;aex <- expr
               ;return aex}
               
@@ -240,20 +243,20 @@ sort = do{s <-    try (sortNum)
      ;return $ SortExpr s}   
        
 sortNum :: Parser Sort
-sortNum = do{ symbol "*"
+sortNum = do{ _ <- symbol "*"
             ; n <- natural
             ; return $ SortNum n
             }
 
 
 star :: Parser Sort
-star = do{ symbol "*"
+star = do{ _ <- symbol "*"
          ; return Star
          }
          
  
 box  :: Parser Sort
-box  = do{ symbol "||"
+box  = do{ _ <- symbol "||"
          ; return Box
          } 
          
@@ -261,6 +264,6 @@ box  = do{ symbol "||"
 -- Unknown
 ----------------------------------------------------------------
 unknown  :: Parser Expr
-unknown  = do{ symbol "?"
+unknown  = do{ _ <- symbol "?"
              ; return Unknown
              } 

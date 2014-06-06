@@ -1,4 +1,16 @@
-module HenkAS where
+module HenkAS
+    ( Program(..)
+    , TDecl(..)
+    , VDecl(..)
+    , TCons
+    , DCons
+    , Expr(..)
+    , TVar(..)
+    , Var(..)
+    , Alt(..)
+    , Lit(..)
+    , Sort(..)
+    ) where
 
 -- Abstract Syntax --
 

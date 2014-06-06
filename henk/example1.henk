@@ -1,5 +1,3 @@
-
-
 -- Generalized Trees
 data GenTree : (* -> *) -> * -> *
        = {Branch : (∀ m:*->*, a: * . a -> m (GenTree m a) -> GenTree m a ) }
@@ -49,28 +47,6 @@ let listOfInt  : List Int  = Cons Int  1    (Cons Int  2     (Nil Int))
 let prodOfList : PairT (List Bool) (PairT (List Nat) (List Int))
   = Pair (List Bool) (PairT (List Nat) (List Int)) listOfBool (Pair (List Nat) (List Int) listOfNat listOfInt)
 
---let main : List (prodT lt)
---  = zipT lt prodOfList
-
--- Existential Types
-
-data E : * 
- = { EC : ∀ a:* . a -> (a -> Bool) -> E }
- 
-let apply : E -> Bool
- = λ e : E .
-   case e of
-   {EC t x f => f x}
-   
-let ex1 : E
- = EC Nat (Succ Zero) isZero
-
-let ex2 : E 
- = EC (List Int) (Nil Int) (isEmpty Int)
-
-let exList : List E
-  = Cons E ex1 (Cons E ex2 (Nil E))
-
-let main : List Bool =
- map E Bool apply exList
+let main : List (prodT lt)
+  = zipT lt prodOfList
 

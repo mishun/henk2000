@@ -5,8 +5,8 @@ import HenkPP(expr2string)
 import TermSupport
 import HenkParser(expr) --tijdelijk
 import Parser       --tijdelijk
-import Monad
-import Trace
+import Control.Monad
+import Debug.Trace
  
 --------------------------------------------------------------------------------
 -- Main

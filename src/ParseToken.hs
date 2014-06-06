@@ -18,8 +18,8 @@ module ParseToken( identifier, reserved
                  , commaSep, commaSep1
                  ) where
 
-import Char         (isSpace,digitToInt)
-import List         (nub,sort)
+import Data.Char         (isSpace,digitToInt,isAlpha,toLower,toUpper)
+import Data.List         (nub,sort)
 import Parser
 import StdTokenDef  (TokenDef(..))
 import TokenDef     (tokenDef)

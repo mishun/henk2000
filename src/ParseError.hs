@@ -20,7 +20,7 @@ module ParseError ( SourceName, Line, Column
                   where
 
 
-import List     (nub,sortBy)
+import Data.List     (nub,sortBy)
                   
 -----------------------------------------------------------
 -- Source Positions

@@ -106,8 +106,8 @@ caseExpr (CaseExpr ex1 as ex)  =     text "case"
                                  <+> expr ex1
                                  <+> text "of"
                                  <+> indent (br_list (map alt as))
-                                 --$$  text ":"
-                                 --<+> expr ex 
+                                 -- $$  text ":"
+                                 -- <+> expr ex 
                                  
 alt :: Alt -> Doc
 alt (Alt tc tcas dcas ex) =

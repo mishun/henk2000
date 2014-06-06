@@ -2,8 +2,8 @@ module HenkTI where
 
 import HenkAS
 import HenkPP(var2string)
-import TermSupport(DeltaRules,SSubst,Subst,Sub,applyStrongSubst)
-import Monad(mapAndUnzipM,foldM)
+import TermSupport(DeltaRules,SSubst(..),Subst,applyStrongSubst)
+import Control.Monad(mapAndUnzipM,foldM)
 import Parser(parse)
 import HenkParser(single_expr)
 import HenkPP(expr2string)

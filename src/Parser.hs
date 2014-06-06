@@ -68,8 +68,8 @@ module Parser(
              ) where
 
 import ParseError
-import Monad
-import Char
+import Control.Monad
+import Data.Char
 
 
 -----------------------------------------------------------

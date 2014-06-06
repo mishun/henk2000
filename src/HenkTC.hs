@@ -1,7 +1,7 @@
 module HenkTC where
 
 import HenkAS
-import Trace
+import Debug.Trace
 import HenkPP(var2string,tVar2string,expr2string)
 import HenkInt(reduce_to_whnf,reduce_to_nf)
 import TermSupport 

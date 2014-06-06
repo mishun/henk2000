@@ -9,7 +9,7 @@ library
     default-language:   Haskell2010
     ghc-options:        -Wall
     build-depends:
-        base >=4.6,
+        base ==4.*,
         pretty,
         parsec
     hs-source-dirs:     src
@@ -29,7 +29,7 @@ executable Henk2000
     default-language:   Haskell2010
     ghc-options:        -Wall
     build-depends:
-        base >=4.6,
+        base ==4.*,
         parsec,
         henk2000
     hs-source-dirs:     main

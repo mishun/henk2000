@@ -94,7 +94,7 @@ appExpr = do{atoms <- many1 atomExpr;
 -- (Capital) Lambda Expression
 ----------------------------------------------------------------
 lamExpr :: Parser Expr
-lamExpr =  do{_ <- symbol "\\" <|> symbol "/\\"  
+lamExpr =  do{_ <- symbol "\\" <|> symbol "/\\" <|> symbol "λ" <|> symbol "Λ"
             ;tvs <- commaSep1 bindVar
             ;_ <- symbol "."
             ;e <- expr 
@@ -105,7 +105,7 @@ lamExpr =  do{_ <- symbol "\\" <|> symbol "/\\"
 -- Pi Expression / ForAll Expression
 ----------------------------------------------------------------
 piExpr :: Parser Expr
-piExpr  = do{ _ <- (symbol "|~|") <|> token (symbol ("\\/"))
+piExpr  = do{ _ <- (symbol "|~|" <|> symbol "∏" <|> symbol "𝚷") <|> token (symbol "\\/" <|> symbol "∀")
           ;tvs <- sepBy1 bindVar comma
           ;_ <- symbol "."
           ;e <- expr 
@@ -119,7 +119,9 @@ piExpr  = do{ _ <- (symbol "|~|") <|> token (symbol ("\\/"))
 funExpr :: Parser Expr
 funExpr = chainr1 appExpr arrow <?> "function expression"
  where
- arrow = do{_ <- symbol "->"; return $ \ex1 ex2 -> PiExpr (TVar Anonymous ex1) ex2}            
+ arrow = do{_ <- symbol "->"
+           ; return $ \ex1 ex2 -> PiExpr (TVar Anonymous ex1) ex2
+           }
           
                          
             
@@ -241,7 +243,7 @@ sort = do{s <-    try (sortNum)
               <|> star
               <|> box
      ;return $ SortExpr s}   
-       
+
 sortNum :: Parser Sort
 sortNum = do{ _ <- symbol "*"
             ; n <- natural
@@ -253,13 +255,13 @@ star :: Parser Sort
 star = do{ _ <- symbol "*"
          ; return Star
          }
-         
- 
+
+
 box  :: Parser Sort
-box  = do{ _ <- symbol "||"
+box  = do{ _ <- symbol "||" <|> symbol "□"
          ; return Box
          } 
-         
+
 ----------------------------------------------------------------
 -- Unknown
 ----------------------------------------------------------------

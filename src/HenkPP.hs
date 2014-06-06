@@ -86,8 +86,8 @@ left_parents ex d = case ex of
 ----------------------------------------------------------------
 lamExpr :: Expr -> Doc
 lamExpr ex = case ex of
- LamExpr (TVar (Var v) (SortExpr Star)) ex1 -> sep [text "/\\" <> text v <> text ".", expr ex1]
- LamExpr tv ex1                  -> sep [text "\\" <> bindVar tv <> text ".", expr ex1]
+ LamExpr (TVar (Var v) (SortExpr Star)) ex1 -> sep [text "Λ" <> text v <> text ".", expr ex1]
+ LamExpr tv ex1                  -> sep [text "λ" <> bindVar tv <> text ".", expr ex1]
  _                               -> undefined
 
 ----------------------------------------------------------------
@@ -96,8 +96,8 @@ lamExpr ex = case ex of
 piExpr :: Expr -> Doc
 piExpr ex = case ex of
  PiExpr (TVar Anonymous ex1) ex2            -> sep [left_parents_function ex1 (expr ex1), text "->", (expr ex2)]
- PiExpr (TVar (Var v) (SortExpr Star)) ex2  -> sep [text "\\/" <> text v <> text ".", expr ex2]
- PiExpr tv ex1                              -> sep [text "|~|" <> bindVar tv <> text ".", expr ex1]
+ PiExpr (TVar (Var v) (SortExpr Star)) ex2  -> sep [text "∀" <> text v <> text ".", expr ex2]
+ PiExpr tv ex1                              -> sep [text "∏" <> bindVar tv <> text ".", expr ex1]
  _                                          -> undefined
 
 left_parents_function :: Expr -> Doc -> Doc
@@ -160,7 +160,7 @@ lit l = case l of
 sort :: Sort -> Doc
 sort s = case s of
  Star      -> text "*" 
- Box       -> text "[]" 
+ Box       -> text "□" 
  SortNum i -> text $ "*"++show i 
 
 ----------------------------------------------------------------

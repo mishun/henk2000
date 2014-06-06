@@ -2,37 +2,37 @@
 
 -- Generalized Trees
 data GenTree : (* -> *) -> * -> *
-       = {Branch : (\/ m:*->*, a: * . a -> m (GenTree m a) -> GenTree m a ) }
+       = {Branch : (∀ m:*->*, a: * . a -> m (GenTree m a) -> GenTree m a ) }
 
 
 -- Generalized Zip  
 data ListT : *
- = {OneT  : * -> ListT
-   ;ConsT : * -> ListT -> ListT}
+ = { OneT  : * -> ListT
+   ; ConsT : * -> ListT -> ListT}
 
 let mapT : (* -> *) -> ListT -> ListT
- = \f:(*->*).\ts : ListT.
+ = λ f:(*->*). λ ts : ListT.
    case ts of
    {OneT  t     => OneT (f t)
    ;ConsT t  r  => ConsT (f t) (mapT f r)}
 
 let prodT : ListT -> *
- = \ts : ListT.
+ = λ ts : ListT.
    case ts of
-   {OneT  t     => t
-   ;ConsT t  r  => PairT t (prodT r)}
+   { OneT  t     => t
+   ; ConsT t  r  => PairT t (prodT r)}
 
-let zip : |~|a:*,b:* . (List a) -> (List b) -> (List (PairT a b))
- = \a:*,b:*,as:(List a),bs:(List b).
+let zip : ∏ a:*, b:* . (List a) -> (List b) -> (List (PairT a b))
+ = λ a:*, b:*, as:(List a), bs:(List b).
    case as of 
    {Nil t         => Nil (PairT a b)
    ;Cons t ae ar  => case bs of
                      {Nil  t        => Nil (PairT a b)
                      ;Cons tt be br => Cons (PairT a b) (Pair a b ae be) (zip a b ar br)}}
             
-let zipT : |~|ts:ListT . prodT (mapT List ts) -> List (prodT ts)
- = \ts: ListT.
-   \xs: (prodT (mapT List ts)).  
+let zipT : ∏ ts:ListT . prodT (mapT List ts) -> List (prodT ts)
+ = λ ts: ListT.
+   λ xs: (prodT (mapT List ts)).  
    case ts of
    {OneT t            => xs
    ;ConsT t' ts'      => 
@@ -55,10 +55,10 @@ let prodOfList : PairT (List Bool) (PairT (List Nat) (List Int))
 -- Existential Types
 
 data E : * 
- = { EC : \/a:* . a -> (a -> Bool) -> E }
+ = { EC : ∀ a:* . a -> (a -> Bool) -> E }
  
 let apply : E -> Bool
- = \e : E .
+ = λ e : E .
    case e of
    {EC t x f => f x}
    
@@ -73,4 +73,4 @@ let exList : List E
 
 let main : List Bool =
  map E Bool apply exList
-  
+

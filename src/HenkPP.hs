@@ -5,7 +5,8 @@ module HenkPP
     , tVar2string
     ) where
 
-import Pretty -- John Hughes pretty printing library
+--import Pretty -- John Hughes pretty printing library
+import Text.PrettyPrint
 import HenkAS
 
 

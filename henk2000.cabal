@@ -9,7 +9,8 @@ library
     default-language:   Haskell2010
     ghc-options:        -Wall
     build-depends:
-        base >=4.6
+        base >=4.6,
+        pretty
     hs-source-dirs:     src
     exposed-modules:
         Classification,
@@ -22,7 +23,6 @@ library
         ParseError,
         Parser,
         ParseToken,
-        Pretty,
         StdTokenDef,
         TermSupport,
         TokenDef,

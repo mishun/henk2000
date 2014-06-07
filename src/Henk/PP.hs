@@ -160,7 +160,7 @@ sort :: Sort -> Doc
 sort s = case s of
  Star      -> text "*" 
  Box       -> text "□" 
- SortNum i -> text $ "*"++show i 
+ SortNum i -> text $ "*" ++ show i 
 
 ----------------------------------------------------------------
 -- Some Sugar
@@ -188,7 +188,7 @@ list ex = case ex of
 listbody :: Expr -> Doc
 listbody ex  = case ex of
  AppExpr (VarExpr (TVar (Var "Nil") _ )) _                              -> text ""
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest -> text "," <> expr el <> listbody rest      
+ AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest -> text ", " <> expr el <> listbody rest      
  _                                                                      -> undefined
 
  

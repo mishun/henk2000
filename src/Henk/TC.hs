@@ -4,10 +4,10 @@ module Henk.TC
     ) where
 
 import Henk.AS
-import Henk.PP (var2string, tVar2string, expr2string)
+import Henk.PP (tVar2string, expr2string)
 import Henk.Int (reduce_to_whnf, reduce_to_nf)
-import Henk.TermSupport
-import Henk.Classification
+import Henk.TermSupport (DeltaRules, isPi, equal, leftMost, SSubst(..), applySSubst, applySubst)
+import Henk.Classification (rho, sortt, elmt)
 import Henk.TypeSystems (Specification)
 
  
@@ -169,8 +169,8 @@ lamExpr _ _ _ = undefined
 piExpr :: TypeCheck Expr Expr
 piExpr dr sp@(_,_,r) ex@(PiExpr (TVar _ a) b)
  = do{btype        <- exprwh dr sp b
-     ;s1           <- return $ sortt sp (Just a) 
-     ;case s1 of 
+     ;s1'          <- return $ sortt sp (Just a) 
+     ;case s1' of 
        Nothing -> do{addErrorMsg $ noSortAMsg ex
                     ;return Unknown}
        Just s1  -> 

@@ -123,4 +123,6 @@ data Either : (* -> * -> *)
           ; Right :  (∀ a, b. b -> Either a b)
           }
 
+let id : ∀ t . t -> t
+        = (λ t:*, x:t . x)
 

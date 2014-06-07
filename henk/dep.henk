@@ -1,0 +1,6 @@
+
+let natOrBool : (∏ n:Nat . case n of { Zero => Bool ; Succ x => Nat })
+        = λ n:Nat . case n of { Zero => False ; Succ x => x }
+
+let main : Bool = natOrBool Zero
+

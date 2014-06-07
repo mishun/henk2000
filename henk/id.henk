@@ -1,0 +1,10 @@
+
+let mix : ∀ a, b . (∀ c . c -> c) -> (a -> b) -> a -> b
+        = λ a:*, b:*, id:(∀ c . c -> c), f:(a -> b), x:a . id b (id (a -> b) f (id a x))
+
+let five : Nat = Succ (Succ (Succ (Succ (Succ Zero))))
+
+let six : Nat = add One five
+
+let main : Nat = mix Nat Nat id (add five) six
+

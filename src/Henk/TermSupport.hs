@@ -4,11 +4,6 @@ module Henk.TermSupport
     , RedexInf(..)
     , isRedex
     , lookup''
-    , isApp
-    , isLam
-    , isPi
-    , isVar
-    , isSort
     , hnf
     , whnf
     , SSubst(..)
@@ -37,18 +32,17 @@ data RedexInf = NoRedex
               | BetaRedex
               | CaseRedex
               | DeltaRedex DeltaRule
- deriving (Show,Eq)
+ deriving (Show, Eq)
 
  
 isRedex :: DeltaRules -> Expr -> RedexInf
-isRedex deltaRules expr = case expr of
- AppExpr (LamExpr _ _) _  -> BetaRedex
- CaseExpr _ _ _           -> CaseRedex
- VarExpr tv               -> case lookup'' tv deltaRules of
-                              Just deltarule  -> DeltaRedex deltarule
-                              Nothing         -> NoRedex
- _                        -> NoRedex
-
+isRedex _ (AppExpr (LamExpr _ _) _) = BetaRedex
+isRedex _ (CaseExpr _ _ _)          = CaseRedex
+isRedex deltaRules (VarExpr tv) =
+    case lookup'' tv deltaRules of
+        Just deltarule -> DeltaRedex deltarule
+        Nothing        -> NoRedex
+isRedex _ _ = NoRedex
 
 
 lookup'' :: TVar -> DeltaRules -> Maybe DeltaRule
@@ -58,37 +52,6 @@ lookup'' tv@(TVar (Var v) _) (r@(DeltaRule ex1 _):rs) =
                     | otherwise -> lookup'' tv rs
   _                             -> undefined
 lookup'' _ _ = Nothing 
-
- 
---------------------------------------------------------------------------------
--- Investigating the Term Structure
--------------------------------------------------------------------------------- 
- 
-isApp :: Expr -> Bool
-isApp expr = case expr of
- (AppExpr _ _) -> True
- _             ->  False
- 
-isLam :: Expr -> Bool
-isLam expr = case expr of
- LamExpr _ _   -> True
- _             -> False 
- 
-
-isPi :: Expr -> Bool
-isPi expr = case expr of
- PiExpr _ _ -> True
- _          -> False
-
-isVar :: Expr -> Bool
-isVar expr = case expr of
- VarExpr _      -> True
- _              -> False
-
-isSort :: Expr -> Bool
-isSort expr = case expr of
- SortExpr _     -> True
- _              -> False
 
 
 hnf :: DeltaRules -> Expr -> Bool 
@@ -169,24 +132,24 @@ applySubToLeftMost sub expr = case expr of
 -- caution: very naive and slow implemenation!!!
 
 class StrongSubstC t where
-  applySStrongSubst  :: SSubst -> t -> t
-  applyStrongSubst   :: Subst  -> t -> t
-  -- default 
-  applyStrongSubst subst expr  = foldr applySStrongSubst expr subst   
+    applySStrongSubst  :: SSubst -> t -> t
+    applyStrongSubst   :: Subst  -> t -> t
+    -- default 
+    applyStrongSubst subst expr  = foldr applySStrongSubst expr subst   
 
 instance StrongSubstC Expr where
- applySStrongSubst ssubst@(Sub (TVar vars _) exprs) expr = case expr of
-  AppExpr exa exb                                 -> AppExpr (applySStrongSubst ssubst exa) (applySStrongSubst ssubst exb)
-  LamExpr tv ex                                   -> lamSStrongSubst ssubst (LamExpr tv ex) 
-  PiExpr  tv ex                                   -> piSStrongSubst ssubst (PiExpr tv ex)                            
-  VarExpr (TVar var expr1)      | (var==vars)     -> exprs
-                                | otherwise       -> VarExpr (TVar var (applySStrongSubst ssubst expr1)) 
-  CaseExpr expr1 alts t                           -> CaseExpr (applySStrongSubst ssubst expr1) (applySStrongSubst ssubst alts) (applySStrongSubst ssubst t)                            
-  exrest                                          -> exrest
+    applySStrongSubst ssubst@(Sub (TVar vars _) exprs) expr = case expr of
+        AppExpr exa exb                                 -> AppExpr (applySStrongSubst ssubst exa) (applySStrongSubst ssubst exb)
+        LamExpr tv ex                                   -> lamSStrongSubst ssubst (LamExpr tv ex) 
+        PiExpr  tv ex                                   -> piSStrongSubst ssubst (PiExpr tv ex)                            
+        VarExpr (TVar var expr1)      | var == vars     -> exprs
+                                      | otherwise       -> VarExpr (TVar var (applySStrongSubst ssubst expr1)) 
+        CaseExpr expr1 alts t                           -> CaseExpr (applySStrongSubst ssubst expr1) (applySStrongSubst ssubst alts) (applySStrongSubst ssubst t)                            
+        exrest                                          -> exrest
 
 
 freshFreeVars :: [Var]
-freshFreeVars = [Var $ "v" ++ show i | i <-[1 :: Int ..]]
+freshFreeVars = [Var $ "v" ++ show i | i <- [1 :: Int ..]]
 
 lamSStrongSubst :: SSubst -> Expr -> Expr
 lamSStrongSubst ssubst@(Sub (TVar vars _) exprs) (LamExpr tv@(TVar var expr1) expr2) 
@@ -206,18 +169,19 @@ lamSStrongSubst _ _ = undefined
 
 piSStrongSubst :: SSubst -> Expr -> Expr
 piSStrongSubst ssubst@(Sub (TVar vars _) exprs) (PiExpr tv@(TVar var expr1) expr2) 
- | var==vars                            = PiExpr (TVar var (applySStrongSubst ssubst expr1)) expr2
- | not $ vars `elem` freeVarsExpr2      = PiExpr (TVar var (applySStrongSubst ssubst expr1)) expr2
- | not $ var  `elem` freeVarsExprs      = PiExpr (TVar var (applySStrongSubst ssubst expr1)) (applySStrongSubst ssubst expr2)
- | otherwise                            = piSStrongSubst 
-                                           ssubst 
-                                           (PiExpr (TVar freshFreeVar expr1) 
-                                            ((applySStrongSubst (Sub tv (VarExpr (TVar freshFreeVar expr1)))) expr2))  
- where
-  freeVarsExprs = (exFreeVars exprs)
-  freeVarsExpr2 = (exFreeVars expr2)
-  freeVars      = freeVarsExprs ++ freeVarsExpr2
-  freshFreeVar  = head(filter (\v->not(v `elem` freeVars)) freshFreeVars)
+    | var==vars                            = PiExpr (TVar var (applySStrongSubst ssubst expr1)) expr2
+    | not $ vars `elem` freeVarsExpr2      = PiExpr (TVar var (applySStrongSubst ssubst expr1)) expr2
+    | not $ var  `elem` freeVarsExprs      = PiExpr (TVar var (applySStrongSubst ssubst expr1)) (applySStrongSubst ssubst expr2)
+    | otherwise                            = 
+        piSStrongSubst ssubst 
+                       (PiExpr (TVar freshFreeVar expr1) 
+                       ((applySStrongSubst (Sub tv (VarExpr (TVar freshFreeVar expr1)))) expr2))  
+    where
+        freeVarsExprs = (exFreeVars exprs)
+        freeVarsExpr2 = (exFreeVars expr2)
+        freeVars      = freeVarsExprs ++ freeVarsExpr2
+        freshFreeVar  = head(filter (\v->not(v `elem` freeVars)) freshFreeVars)
+
 piSStrongSubst _ _ = undefined
 
 
@@ -248,7 +212,7 @@ equal (LamExpr (TVar Anonymous _) ex1)
 
 
 equal (PiExpr tv1@(TVar (Var v1) _) ex1)
-      (PiExpr tv2@(TVar (Var v2) _) ex2)  = case (v1==v2) of
+      (PiExpr tv2@(TVar (Var v2) _) ex2)  = case v1 == v2 of
                                                 True   -> equal ex1 ex2
                                                 False  -> equal ex1 $ applySubst [Sub tv2 (VarExpr tv1)] ex2
 equal (PiExpr (TVar Anonymous _) ex1)
@@ -276,20 +240,20 @@ class FreeVars t
   where exFreeVars :: t -> [Var]
  
 instance FreeVars Expr where
- exFreeVars expr = case expr of
-  AppExpr exa exb                                 -> exFreeVars exa ++ exFreeVars exb
-  LamExpr (TVar var expr1) expr2                  -> filter (/=var) $ exFreeVars expr1 ++ (exFreeVars expr2)
-  PiExpr  (TVar var expr1) expr2                  -> filter (/=var) $ exFreeVars expr1 ++ (exFreeVars expr2)
-  VarExpr (TVar var expr1)                        -> var : exFreeVars expr1
-  CaseExpr expr1 alts t                           -> exFreeVars expr1 ++ exFreeVars alts ++ exFreeVars t
-  LitExpr _                                       -> []
-  SortExpr _                                      -> []
-  Unknown                                         -> []
+    exFreeVars expr = case expr of
+        AppExpr exa exb                                 -> exFreeVars exa ++ exFreeVars exb
+        LamExpr (TVar var expr1) expr2                  -> filter (/=var) $ exFreeVars expr1 ++ exFreeVars expr2
+        PiExpr  (TVar var expr1) expr2                  -> filter (/=var) $ exFreeVars expr1 ++ exFreeVars expr2
+        VarExpr (TVar var expr1)                        -> var : exFreeVars expr1
+        CaseExpr expr1 alts t                           -> exFreeVars expr1 ++ exFreeVars alts ++ exFreeVars t
+        LitExpr _                                       -> []
+        SortExpr _                                      -> []
+        Unknown                                         -> []
 
 instance FreeVars Alt where
- exFreeVars (Alt _ _ _ res) = exFreeVars res
+    exFreeVars (Alt _ _ _ res) = exFreeVars res
  
 
 instance FreeVars t => FreeVars [t] where
- exFreeVars xs = concat $ map exFreeVars xs
+    exFreeVars xs = concat $ map exFreeVars xs
 

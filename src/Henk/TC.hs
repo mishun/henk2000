@@ -3,14 +3,15 @@ module Henk.TC
     , tcexpr
     ) where
 
+import Control.Monad (unless, forM)
 import Henk.AS
 import Henk.PP (tVar2string, expr2string)
 import Henk.Int (reduce_to_whnf, reduce_to_nf)
-import Henk.TermSupport (DeltaRules, isPi, equal, leftMost, SSubst(..), applySSubst, applySubst)
+import Henk.TermSupport (DeltaRules, equal, leftMost, SSubst(..), applySSubst, applySubst)
 import Henk.Classification (rho, sortt, elmt)
 import Henk.TypeSystems (Specification)
 
- 
+
 --------------------------------------------------------------------------------  
 -- The Type Check Monad
 -------------------------------------------------------------------------------- 
@@ -46,17 +47,19 @@ type TypeCheck a b = DeltaRules -> Specification -> a -> TC b
 -- Program
 --------------------------------------------------------------------------------
 program :: TypeCheck Program ()
-program  dr sp (Program tds vds) = do{ mapM_ (tDecl dr sp) tds
-                                     ; mapM_ (vDecl dr sp) vds
-                                     ; return () }
+program  dr sp (Program tds vds) = do
+    mapM_ (tDecl dr sp) tds
+    mapM_ (vDecl dr sp) vds
+    return ()
 
 --------------------------------------------------------------------------------  
 -- Type Declarations
 --------------------------------------------------------------------------------
 tDecl    :: TypeCheck TDecl ()
-tDecl dr sp td@(TDecl tv tvs) = do{mapM_ (\(TVar _ t) -> expr dr sp t) (tv:tvs)
-                                  ;isOfRightForm dr sp td 
-                                  ;return ()}
+tDecl dr sp td@(TDecl tv tvs) = do
+    mapM_ (\ (TVar _ t) -> expr dr sp t) (tv : tvs)
+    isOfRightForm dr sp td
+    return ()
 
 
 isOfRightForm :: TypeCheck TDecl ()
@@ -69,171 +72,115 @@ isOfRightForm _ _ _ = return ()
 -- Value Declarations
 --------------------------------------------------------------------------------
 vDecl    :: TypeCheck VDecl ()
-vDecl dr sp (VDecl tv@(TVar _ tv_type) ex)
- = do {ex_type <- expr dr sp ex
-      ;if 
-         not $ equal tv_type ex_type
-       then
-         do{addErrorMsg $ bindMsg tv tv_type ex ex_type
-           ;return $ ()}
-       else
-         return ()
-      }
+vDecl dr sp (VDecl tv@(TVar _ tv_type) ex) = do
+    ex_type <- expr dr sp ex
+    unless (equal tv_type ex_type) $
+        addErrorMsg $ bindMsg tv tv_type ex ex_type
 
                                  
 --------------------------------------------------------------------------------  
 -- Expressions
 --------------------------------------------------------------------------------                                                                                     
-expr :: TypeCheck Expr Expr
-expr dr sp ex = case ex of 
- SortExpr _         -> sortExpr dr sp ex                  -- (STAR)
- VarExpr _          -> varExpr  dr sp ex                  -- (VAR)
- PiExpr _  _        -> piExpr   dr sp ex                  -- (PI)
- LamExpr _ _        -> lamExpr  dr sp ex                  -- (LAM)
- AppExpr _ _        -> appExpr  dr sp ex                  -- (APP)
- CaseExpr _ _ _     -> caseExpr dr sp ex                  -- (CASE)
- LitExpr _          -> litExpr  dr sp ex                  -- (INT)
- Unknown            -> return Unknown
-
 exprwh :: TypeCheck Expr Expr
-exprwh dr sp ex' =
- do{ex <- expr dr sp ex'
-   ;return $ reduce_to_whnf dr ex}
+exprwh dr sp ex' = do
+    ex <- expr dr sp ex'
+    return $ reduce_to_whnf dr ex
 
 
---------------------------------------------------------------------------------  
--- (SORT)
---------------------------------------------------------------------------------
-sortExpr :: DeltaRules -> Specification -> Expr -> TC Expr
-sortExpr _ (_,a,_) (SortExpr s1) 
- = case lookup s1 a of
-   Just s2 -> do{return $ SortExpr s2}
-   Nothing -> do{addErrorMsg $ noAxiomMsg s1
-                ;return Unknown} 
-sortExpr _ _ _ = undefined
-                                              
+expr :: TypeCheck Expr Expr
 
---------------------------------------------------------------------------------  
--- (VAR)
---------------------------------------------------------------------------------
-varExpr :: DeltaRules -> Specification -> Expr -> TC Expr
-varExpr _ _ (VarExpr (TVar _ ex)) = return ex
-varExpr _ _ _ = undefined
+expr _ (_, a, _) (SortExpr s1) =
+    case lookup s1 a of
+        Just s2 -> return $ SortExpr s2
+        Nothing -> do
+            addErrorMsg $ noAxiomMsg s1
+            return Unknown
 
-                         
---------------------------------------------------------------------------------  
--- (APP)
---------------------------------------------------------------------------------
-appExpr :: TypeCheck Expr Expr
-appExpr dr sp (AppExpr f c)
- = do{f_type <- exprwh dr sp f
-     ;a      <- expr dr sp c
-     ;if
-        (not (isPi f_type))
-      then
-        do{addErrorMsg $ appMsg2 f f_type c a                              
-          ;return  Unknown}
-      else       
-        let 
-          (PiExpr tv@(TVar _ a') b)=f_type
-        in 
-          do{a  <- return $ reduce_to_nf dr a
-            ;a' <- return $ reduce_to_nf dr a'
-            ;if 
-               not (equal a a')
-             then
-               do{addErrorMsg $ appMsg1 f f_type c a a'
-                 ;return Unknown}
-             else
-               do{return $ applySSubst (Sub tv c) b}   
-             }                        
-     }
-appExpr _ _ _ = undefined
+expr _ _ (VarExpr (TVar _ ex)) = return ex
 
-                          
---------------------------------------------------------------------------------  
--- (LAM)
---------------------------------------------------------------------------------
-lamExpr :: TypeCheck Expr Expr
-lamExpr dr sp ex@(LamExpr tv@(TVar _ a) m)
- = do{b <- expr dr sp m                  
-     ;case rho sp (sortt sp $ Just a) (elmt sp $ Just m) of
-       Just _  -> return $ PiExpr tv b
-       Nothing -> do{addErrorMsg $ lamMsg ex ; return Unknown}}
-lamExpr _ _ _ = undefined
+expr dr sp@(_, _, r) ex@(PiExpr (TVar _ a) b) = do
+    btype <- exprwh dr sp b
+    case sortt sp (Just a)  of 
+        Nothing -> do
+            addErrorMsg $ noSortAMsg ex
+            return Unknown
+        Just s1  ->
+            case btype of
+                SortExpr s2 ->
+                    case lookup' (s1,s2) r of
+                        Nothing         -> do
+                            addErrorMsg $ ruleMsg ex s1 s2  
+                            return Unknown
+                        Just (_, _, s3) ->
+                            return $ SortExpr s3
+                _           -> do
+                    addErrorMsg $ noSortBMsg ex btype
+                    return Unknown
 
+expr dr sp ex@(LamExpr tv@(TVar _ a) m) = do
+    b <- expr dr sp m                  
+    case rho sp (sortt sp $ Just a) (elmt sp $ Just m) of
+        Just _  -> return $ PiExpr tv b
+        Nothing -> do
+            addErrorMsg $ lamMsg ex
+            return Unknown
 
---------------------------------------------------------------------------------  
--- (PI)
---------------------------------------------------------------------------------
-piExpr :: TypeCheck Expr Expr
-piExpr dr sp@(_,_,r) ex@(PiExpr (TVar _ a) b)
- = do{btype        <- exprwh dr sp b
-     ;s1'          <- return $ sortt sp (Just a) 
-     ;case s1' of 
-       Nothing -> do{addErrorMsg $ noSortAMsg ex
-                    ;return Unknown}
-       Just s1  -> 
-        do{case btype of
-         SortExpr s2 -> do{case lookup' (s1,s2) r of
-                            Nothing       -> do{addErrorMsg $ ruleMsg ex s1 s2  
-                           ;return Unknown}
-                            Just (_,_,s3) -> return $ SortExpr s3
-              }
-         _           -> do{addErrorMsg $ noSortBMsg ex btype
-                  ;return Unknown}         
-      }
-      }
-piExpr _ _ _ = undefined
+expr dr sp (AppExpr f c) = do
+    f_type <- exprwh dr sp f
+    exa    <- expr dr sp c
+    case f_type of
+        PiExpr tv@(TVar _ exa') b -> do
+            a  <- return $ reduce_to_nf dr exa
+            a' <- return $ reduce_to_nf dr exa'
+            if not (equal a a')
+                then do
+                    addErrorMsg $ appMsg1 f f_type c a a'
+                    return Unknown
+                else return $ applySSubst (Sub tv c) b
+
+        _                       -> do
+            addErrorMsg $ appMsg2 f f_type c exa
+            return Unknown
+
+expr dr sp ce@(CaseExpr ex alts Unknown) = do
+    ex_type                      <- expr dr sp ex
+    _                            <- return $ leftMost ex_type
+    atcas                        <- return $ ex_atcas ex_type
+    rt <- forM alts $ \ (Alt _ tcas _ res') -> do
+        subst <- return $ zipWith Sub tcas atcas 
+        res   <- return $ applySubst subst res'
+        expr dr sp res
+
+    case foldr1 (\ t1 t2 -> if equal t1 t2 then t1 else Unknown) rt of
+        Unknown -> do
+            addErrorMsg $ caseMsg ce
+            return Unknown
+        ct      ->
+            return ct
+
+expr _ _ (CaseExpr _ _ t) = return t
+
+expr _ _ (LitExpr lit) =
+    case lit of
+        LitInt _ -> return $ LitExpr IntType
+        IntType  -> return $ SortExpr Star
+
+expr _ _ Unknown = return Unknown
 
 
-lookup' :: (Eq a , Eq b) => (a,b) -> [(a,b,c)] -> Maybe (a,b,c)
-lookup' (a,b) l  
- = case filter (\(t1,t2,_) -> t1==a && t2==b) l of
-   x:_ -> Just x
-   _   -> Nothing
+lookup' :: (Eq a, Eq b) => (a, b) -> [(a, b, c)] -> Maybe (a, b, c)
+lookup' (a, b) l =
+    case filter (\ (t1, t2, _) -> t1 == a && t2 == b) l of
+        x : _ -> Just x
+        _     -> Nothing
 
 
---------------------------------------------------------------------------------  
--- (CASE)
---------------------------------------------------------------------------------
-caseExpr :: TypeCheck Expr Expr
-caseExpr dr sp ce@(CaseExpr ex alts Unknown) = 
- do{ex_type                      <- expr dr sp ex
-   ;_                            <- return $ leftMost ex_type
-   ;atcas                        <- return $ ex_atcas ex_type
-   ;rt <- mapM (\(Alt _ tcas _ res')->
-          do{subst                        <- return $ zipWith Sub tcas atcas 
-            ;res                          <- return $ applySubst subst res'
-            ;expr dr sp res})  alts
-   ;ct <- return $ foldr1 (\t1 t2 -> if equal t1 t2 then t1 else Unknown) rt               
-   ;if 
-      ct==Unknown 
-    then 
-      do{addErrorMsg $ caseMsg ce 
-        ;return ct}
-    else
-        return ct           
-   } 
-caseExpr _ _ (CaseExpr _ _ t) = return t
-caseExpr _ _ _ = undefined
-
-ex_atcas' :: Expr -> [Expr]
 ex_atcas :: Expr -> [Expr]
-ex_atcas  ex  = tail $ ex_atcas' ex
-ex_atcas' ex  = case ex of
- AppExpr ex1 ex2 -> (ex_atcas' ex1)++[ex2]
- _               -> [ex]
+ex_atcas =
+    let ex_atcas' (AppExpr ex1 ex2) = ex_atcas' ex1 ++ [ex2]
+        ex_atcas' ex = [ex]
+    in tail . ex_atcas'
 
---------------------------------------------------------------------------------
--- (LIT)
---------------------------------------------------------------------------------
-litExpr :: TypeCheck Expr Expr
-litExpr _ _ (LitExpr lit) 
- = case lit of
-   LitInt _ -> return $ LitExpr IntType
-   IntType  -> return $ SortExpr Star
-litExpr _ _ _ = undefined
 
 
 
@@ -249,7 +196,8 @@ appMsg1 f f_type a a_type var_type
    "Type Right Expr             : " ++ expr2string a_type        ++ "\n" ++
    "Type mismatch because       : " ++ expr2string a_type        ++ "\n" ++ 
    "does not match              : " ++ expr2string var_type      ++ "\n"
-   
+
+
 lamMsg :: Expr -> Error
 lamMsg _ = "lamerror"
 

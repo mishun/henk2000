@@ -5,6 +5,7 @@ module Henk.Int
     , reduce_to_nf
     ) where
 
+import Data.Maybe (fromMaybe)
 import Control.Monad (mplus)
 import Henk.AS
 import Henk.PP (expr2string)
@@ -32,6 +33,7 @@ intmain deltaRules _
 prog2DeltaRules :: Program -> DeltaRules
 prog2DeltaRules (Program _ vdecls) = map vDecl2DeltaRule vdecls
 
+
 vDecl2DeltaRule :: VDecl -> DeltaRule
 vDecl2DeltaRule (VDecl tv ex)  = DeltaRule tv ex
 
@@ -41,11 +43,11 @@ vDecl2DeltaRule (VDecl tv ex)  = DeltaRule tv ex
 --------------------------------------------------------------------------------
 reduceRedex :: DeltaRules -> RedexInf -> Expr -> Expr
 reduceRedex dr ri ex = case ri of
- BetaRedex      -> reduceBeta ex        
- CaseRedex      -> reduceCase dr ex                                                                 
- DeltaRedex dr1 -> reduceDeltaRule ex dr1
- NoRedex        -> error "NoRedex"
- 	      
+    BetaRedex      -> reduceBeta ex
+    CaseRedex      -> reduceCase dr ex
+    DeltaRedex dr1 -> reduceDeltaRule ex dr1
+    NoRedex        -> error "NoRedex"
+
 reduceBeta :: Expr -> Expr
 reduceBeta (AppExpr  (LamExpr tv ex1) ex2) = applySubst [(Sub tv ex2)] ex1  		      
 reduceBeta _ = undefined
@@ -62,18 +64,19 @@ lookupA :: Expr -> [Alt] -> Maybe Alt
 lookupA ex alts = lookupA' (leftMost ex) alts
 
 lookupA' :: Expr -> [Alt] -> Maybe Alt
-lookupA' ex ((a@(Alt  (TVar va _) _ _ _)):as) = case ex of 
- (VarExpr (TVar v _))  | v==va      -> Just  a
-                       | otherwise  -> lookupA' ex as
- _                                  -> undefined
-lookupA' _ []    = Nothing
+lookupA' ex ((a@(Alt  (TVar va _) _ _ _)) : as) =
+    case ex of
+        (VarExpr (TVar v _))  | v==va      -> Just  a
+                              | otherwise  -> lookupA' ex as
+        _                                  -> undefined
+lookupA' _ [] = Nothing
 
 
-   
-               
+
+
 
 reduceDeltaRule :: Expr -> DeltaRule -> Expr
-reduceDeltaRule _ (DeltaRule _ ex2) = ex2	    
+reduceDeltaRule _ (DeltaRule _ ex2) = ex2
 
 --------------------------------------------------------------------------------
 -- eval Reduction
@@ -84,30 +87,21 @@ reduceDeltaRule _ (DeltaRule _ ex2) = ex2
 
 
 eval :: DeltaRules -> Expr -> Maybe Expr
-eval dr ex       
- | redexinf/=NoRedex                = mplus (eval dr reduced) (Just reduced) 
- | isApp  ex                        = evalApp dr ex
- | otherwise                        = Nothing                                                     
- where redexinf = isRedex dr ex
-       reduced  = (reduceRedex dr redexinf ex)
+eval dr ex | redexinf /= NoRedex  = mplus (eval dr reduced) (Just reduced)
+    where redexinf = isRedex dr ex
+          reduced  = reduceRedex dr redexinf ex
 
+eval dr (AppExpr ex1 ex2) =
+    case eval dr ex1 of
+        Just ex1r -> mplus (eval dr $ AppExpr ex1r ex2) (Just $ AppExpr ex1r ex2)
+        Nothing   -> AppExpr ex1 `fmap` eval dr ex2
 
-evalApp :: DeltaRules -> Expr -> Maybe Expr
-evalApp dr (AppExpr ex1 ex2) = 
- case (eval dr ex1) of 
-   Just ex1r -> mplus (eval dr (AppExpr ex1r ex2)) (Just (AppExpr ex1r ex2)) 
-   Nothing   -> case (eval dr ex2) of
-                                 Just ex2r   -> Just $ AppExpr ex1 ex2r
-                                 Nothing     -> Nothing
-evalApp _ _ = undefined
-                    
+eval _ _ = Nothing
+
 
 -- Reducing using the normal strategy until a "eval" head normal form is reached                              
 reduce_to_mnf :: DeltaRules -> Expr -> Expr
-reduce_to_mnf dr ex = case (eval dr ex) of
-                        Just exr   -> exr 
-                        Nothing    -> ex                            
- 
+reduce_to_mnf dr ex = fromMaybe ex $ eval dr ex 
    
 	                    
 --------------------------------------------------------------------------------
@@ -117,31 +111,23 @@ reduce_to_mnf dr ex = case (eval dr ex) of
 -- a weak head normal formal is reached
 -- normal order = left-most outer-most
 
-                
+
 weak :: DeltaRules -> Expr -> Maybe Expr
-weak dr ex        
- | redexinf/=NoRedex                = mplus (weak dr reduced) (Just reduced)  
- | isApp  ex                        = weakApp dr ex   
- | otherwise                        = Nothing                                                     
- where redexinf = isRedex dr ex
-       reduced  = (reduceRedex dr redexinf ex)
-      
+weak dr ex | redexinf /= NoRedex  = mplus (weak dr reduced) (Just reduced)
+    where redexinf = isRedex dr ex
+          reduced  = reduceRedex dr redexinf ex
 
-weakApp :: DeltaRules -> Expr -> Maybe Expr
-weakApp dr (AppExpr ex1 ex2) = 
- case (weak dr ex1) of 
-   Just ex1r -> mplus (weak dr (AppExpr ex1r ex2))
-                      (Just (AppExpr ex1r ex2)) 
-   Nothing   -> Nothing
-weakApp _ _ = undefined
+weak dr (AppExpr ex1 ex2) = do
+    ex1r <- weak dr ex1
+    mplus (weak dr $ AppExpr ex1r ex2) (Just $ AppExpr ex1r ex2)
 
--- Reducing using the normal strategy until a weak head normal form is reached                                
+weak _ _ = Nothing
+
+
+-- Reducing using the normal strategy until a weak head normal form is reached
 reduce_to_whnf :: DeltaRules -> Expr -> Expr
-reduce_to_whnf dr ex = case (weak dr ex) of
-                              Just exr  -> reduce_to_whnf dr exr
-                              Nothing   -> ex
+reduce_to_whnf dr ex = fromMaybe ex $ weak dr ex
 
-  
 
 --------------------------------------------------------------------------------
 -- Strong Reduction
@@ -152,49 +138,38 @@ reduce_to_whnf dr ex = case (weak dr ex) of
 -- always reduce to a (unique) nf. Therefore we can check whether two
 -- types are Beta-equivalent, by reducing them both to a nf, and checking
 -- if they are syntacticly equivalent modulo alpha-conversion.
-     
+
 strong :: DeltaRules -> Expr -> Maybe Expr
-strong dr ex       
- | not $ redexinf `elem` [NoRedex,BetaRedex]
-                                             = mplus (strong dr reduced) (Just reduced)   
- | redexinf==BetaRedex                       = let (AppExpr  (LamExpr tv ex1) ex2)=ex 
-                                                   breduced =  applySStrongSubst (Sub tv ex2) ex1 in
-                                                   mplus (strong dr breduced) (Just breduced)						         
- | isApp  ex                               = strongApp  dr ex   
- | isLam    ex                             = strongLam  dr ex  
- | otherwise                               = Nothing                                                    
- where redexinf = isRedex dr ex
-       reduced  = (reduceRedex dr redexinf ex)
+strong dr ex | not $ redexinf `elem` [NoRedex, BetaRedex]  = mplus (strong dr reduced) (Just reduced)
+             | redexinf == BetaRedex                       =
+        let (AppExpr (LamExpr tv ex1) ex2) = ex
+            breduced = applySStrongSubst (Sub tv ex2) ex1
+        in mplus (strong dr breduced) (Just breduced)
+    where redexinf = isRedex dr ex
+          reduced  = (reduceRedex dr redexinf ex)
 
-strongApp :: DeltaRules -> Expr -> Maybe Expr       		                                
-strongApp dr (AppExpr ex1 ex2) = 
- case strong dr ex1 of 
-   Just ex1r -> mplus (strong dr (AppExpr ex1r ex2)) (Just $ AppExpr ex1r ex2)
-   Nothing   -> case (strong dr ex2) of
-                  Just ex2r -> Just $ AppExpr ex1 ex2r 
-                  Nothing   -> Nothing
-strongApp _ _ = undefined
+strong dr (AppExpr ex1 ex2) =
+    case strong dr ex1 of 
+        Just ex1r -> mplus (strong dr $ AppExpr ex1r ex2) (Just $ AppExpr ex1r ex2)
+        Nothing   -> AppExpr ex1 `fmap` strong dr ex2
+
+strong dr (LamExpr (TVar var exv) ex) =
+    if (mexvr==Nothing && mexr==Nothing)
+        then Nothing
+        else do
+            exvr <- mplus mexvr (Just exv)
+            exr <- mplus mexr (Just ex)
+            return $ LamExpr (TVar var exvr) exr
+    where  
+        mexvr = strong dr exv
+        mexr  = strong dr ex
+
+strong _ _ = Nothing
 
 
-strongLam :: [DeltaRule] -> Expr -> Maybe Expr
-strongLam dr (LamExpr (TVar var exv) ex) 
- = if
-     (mexvr==Nothing && mexr==Nothing)
-   then
-     Nothing
-   else 
-     do{exvr<-mplus mexvr (Just exv)
-       ;exr <-mplus mexr  (Just ex)
-       ;return $ LamExpr (TVar var exvr) exr}    
-   where  
-    mexvr = strong dr exv
-    mexr  = strong dr ex
-strongLam _ _ = undefined
-
--- Reducing using the normal strategy until a normal form is reached                          
+-- Reducing using the normal strategy until a normal form is reached
 reduce_to_nf :: DeltaRules -> Expr -> Expr
-reduce_to_nf dr ex = case  mplus (strong dr mnf) (Just mnf) of
-                      Just exr  -> exr
-                      Nothing   -> ex
-		      where mnf = reduce_to_mnf dr ex 
+reduce_to_nf dr ex =
+    let mnf = reduce_to_mnf dr ex
+    in fromMaybe ex $ mplus (strong dr mnf) (Just mnf)
 

@@ -5,21 +5,22 @@ module Henk.PP
     , tVar2string
     ) where
 
+import Data.Maybe (isJust)
 import Text.PrettyPrint
 import Henk.AS
 
 
 program2string :: Program -> String
-program2string = (render.program) 
+program2string = render . program
 
 expr2string :: Expr -> String
-expr2string = (render.expr)
+expr2string = render . expr
 
 var2string :: Var -> String
-var2string = (render.var)
+var2string = render . var
 
 tVar2string :: TVar -> String
-tVar2string = (render.boundVar)
+tVar2string = render . boundVar
 
 -- just for testing
 --rules2string :: Rules -> String
@@ -29,11 +30,11 @@ tVar2string = (render.boundVar)
  
 ----------------------------------------------------------------
 -- The Program
----------------------------------------------------------------- 
-program :: Program -> Doc 
-program (Program tds vds) =    vsep (map tDecl tds)  
+----------------------------------------------------------------
+program :: Program -> Doc
+program (Program tds vds) =    vsep (map tDecl tds)
                             $$ vsep (map vDecl vds)
- 
+
 ----------------------------------------------------------------
 -- Type Declaration
 ----------------------------------------------------------------
@@ -42,85 +43,76 @@ tDecl (TDecl tv tvs) =     text "data"
                        <+> bindVar tv
                        $$  indent (    text "="
                                    <+> br_list (map bindVar tvs))
-                                   
+
 ----------------------------------------------------------------
 -- Value Declaration
 ----------------------------------------------------------------
 vDecl :: VDecl -> Doc
-vDecl (VDecl tv ex) = sep[bindVar tv, text "=" <+> expr ex]
-                
+vDecl (VDecl tv ex) = sep [bindVar tv, text "=" <+> expr ex]
+
 ----------------------------------------------------------------
 -- Expression
-----------------------------------------------------------------                       
-expr :: Expr -> Doc                    
-expr ex = case ex of
- LamExpr tv ex1      -> lamExpr (LamExpr tv ex1)
- PiExpr  tv ex1      -> piExpr  (PiExpr  tv ex1)
- AppExpr ex1 ex2     | isList ex   -> list ex
-                     | otherwise   -> left_parents ex1 (expr ex1) <+>  right_parents ex2 (expr ex2)
- CaseExpr ex1 as exs -> caseExpr (CaseExpr ex1 as exs)
- VarExpr tv          -> boundVar tv
- LitExpr l           -> lit l
- SortExpr s          -> sort s
- Unknown             -> text "?"
+----------------------------------------------------------------
+expr :: Expr -> Doc
 
- 
+expr (LamExpr (TVar (Var v) (SortExpr Star)) ex1) = sep [text "Λ" <> text v <> text ".", expr ex1]
+expr (LamExpr tv ex1)                             = sep [text "λ" <> bindVar tv <> text ".", expr ex1]
+expr (PiExpr (TVar Anonymous ex1) ex2)            = sep [left_parents_function ex1 (expr ex1), text "->", (expr ex2)]
+expr (PiExpr (TVar (Var v) (SortExpr Star)) ex2)  = sep [text "∀" <> text v <> text ".", expr ex2]
+expr (PiExpr tv ex1)                              = sep [text "∏" <> bindVar tv <> text ".", expr ex1]
+
+expr ex@(AppExpr ex1 ex2)                         =
+    case tryListLiteral ex of
+        Nothing      -> left_parents ex1 (expr ex1) <+> right_parents ex2 (expr ex2)
+        Just []      -> text "[]"
+        Just (h : t) -> text "[" <> expr h <> foldr (\ a b -> text ", " <> expr a <> b) (text "") t <> text "]"
+
+expr (CaseExpr ex1 as _)                          = text "case" <+> expr ex1 <+> text "of" <+> indent (br_list (map alt as)) -- $$  text ":" <+> expr ex
+expr (VarExpr tv)                                 = boundVar tv
+
+expr (LitExpr l)                                  =
+    case l of
+        LitInt i -> text $ show i
+        IntType  -> text "Int"
+
+expr (SortExpr s)                                 =
+    case s of
+        Star      -> text "*"
+        Box       -> text "□"
+        SortNum i -> text $ "*" ++ show i
+
+expr Unknown                                      = text "?"
+
+
 right_parents :: Expr -> Doc -> Doc
-right_parents ex d = case ex of
- AppExpr _ _ -> if (isList ex) then d else parens d
- LamExpr _ _ -> parens d
- PiExpr  _ _ -> parens d
- _           -> d
+right_parents ex d =
+    case ex of
+        AppExpr _ _ -> if isList ex then d else parens d
+        LamExpr _ _ -> parens d
+        PiExpr  _ _ -> parens d
+        _           -> d
 
 
 left_parents :: Expr -> Doc -> Doc
-left_parents ex d = case ex of
- LamExpr _ _ -> parens d
- PiExpr  _ _ -> parens d
- _           -> d
+left_parents ex d =
+    case ex of
+        LamExpr _ _ -> parens d
+        PiExpr  _ _ -> parens d
+        _           -> d
 
-
-----------------------------------------------------------------        
--- (Capital) Lambda Expression
-----------------------------------------------------------------
-lamExpr :: Expr -> Doc
-lamExpr ex = case ex of
- LamExpr (TVar (Var v) (SortExpr Star)) ex1 -> sep [text "Λ" <> text v <> text ".", expr ex1]
- LamExpr tv ex1                  -> sep [text "λ" <> bindVar tv <> text ".", expr ex1]
- _                               -> undefined
-
-----------------------------------------------------------------
--- Pi,ForAll,Function Expression
-----------------------------------------------------------------
-piExpr :: Expr -> Doc
-piExpr ex = case ex of
- PiExpr (TVar Anonymous ex1) ex2            -> sep [left_parents_function ex1 (expr ex1), text "->", (expr ex2)]
- PiExpr (TVar (Var v) (SortExpr Star)) ex2  -> sep [text "∀" <> text v <> text ".", expr ex2]
- PiExpr tv ex1                              -> sep [text "∏" <> bindVar tv <> text ".", expr ex1]
- _                                          -> undefined
 
 left_parents_function :: Expr -> Doc -> Doc
-left_parents_function ex d = case ex of
- PiExpr (TVar Anonymous _) _  -> parens d
- _                            -> d
+left_parents_function ex d =
+    case ex of
+        PiExpr (TVar Anonymous _) _ -> parens d
+        _                           -> d
 
----------------------------------------------------------------- 
--- Case Expression
----------------------------------------------------------------- 
-caseExpr :: Expr -> Doc
-caseExpr (CaseExpr ex1 as _)  =     text "case"
-                                 <+> expr ex1
-                                 <+> text "of"
-                                 <+> indent (br_list (map alt as))
-                                 -- $$  text ":"
-                                 -- <+> expr ex
-caseExpr _ = undefined
 
 alt :: Alt -> Doc
 alt (Alt tc tcas dcas ex) =
                          boundVar tc
-                     <+> (if (null tcas) then (empty) else (comma_sep (map boundVar tcas)))
-                     <+> (if (null dcas) then (empty) else (comma_sep (map boundVar dcas)))
+                     <+> (if null tcas then empty else comma_sep (map boundVar tcas))
+                     <+> (if null dcas then empty else comma_sep (map boundVar dcas))
                      <+> text "=>"
                      <+> expr ex                                              
 
@@ -141,58 +133,25 @@ boundVar tv = case tv of
 
 
 var :: Var -> Doc
-var v = case v of
- Var n     -> text n
- Anonymous -> text "_"
-  
-----------------------------------------------------------------
--- Literal
-----------------------------------------------------------------
-lit :: Lit -> Doc
-lit l = case l of
- LitInt i -> text $ show i
- IntType  -> text "Int"
-
-----------------------------------------------------------------
--- Sorts
-----------------------------------------------------------------
-sort :: Sort -> Doc
-sort s = case s of
- Star      -> text "*" 
- Box       -> text "□" 
- SortNum i -> text $ "*" ++ show i 
-
-----------------------------------------------------------------
--- Some Sugar
-----------------------------------------------------------------
+var (Var n)   = text n
+var Anonymous = text "_"
 
 
 ----------------------------------------------------------------
 -- Lists
 ----------------------------------------------------------------
 
---isList is slow
+tryListLiteral :: Expr -> Maybe [Expr]
+tryListLiteral (AppExpr (VarExpr (TVar (Var "Nil") _ )) _) = Just []
+tryListLiteral (AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest) = (el :) `fmap` tryListLiteral rest
+tryListLiteral _ = Nothing
+
 
 isList :: Expr -> Bool
-isList ex = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                             -> True
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) _) rest -> isList rest
- _                                                                     -> False
+isList = isJust . tryListLiteral
 
-list :: Expr -> Doc
-list ex = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                               -> text "[]"
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest  -> text "[" <> expr el <> listbody rest <> text "]"
- _                                                                       -> undefined
- 
-listbody :: Expr -> Doc
-listbody ex  = case ex of
- AppExpr (VarExpr (TVar (Var "Nil") _ )) _                              -> text ""
- AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest -> text ", " <> expr el <> listbody rest      
- _                                                                      -> undefined
 
- 
-----------------------------------------------------------------                  
+----------------------------------------------------------------
 -- help functions
 ----------------------------------------------------------------
 indent :: Doc -> Doc
@@ -200,14 +159,14 @@ indent = nest 2
 
 vsep :: [Doc] -> Doc
 vsep xs  = vcat (map ($$ text "") xs)
- 
+
 br_list :: [Doc] -> Doc
 br_list (x:xs) = sep $    [text "{" <+> x] 
-                       ++ foldr (\x' y -> [text ";" <+> x'] ++ y) [] (xs)
-                       ++ [text"}"]
+                       ++ foldr (\x' y -> [text ";" <+> x'] ++ y) [] xs
+                       ++ [text "}"]
 br_list []     = text "{}"
 
 comma_sep :: [Doc] -> Doc 
-comma_sep (x:xs) = x <> foldr (\x' y -> text "," <+> x' <> y) empty (xs)
+comma_sep (x : xs) = x <> foldr (\ x' y -> text "," <+> x' <> y) empty xs
 comma_sep [] = undefined
 

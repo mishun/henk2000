@@ -15,12 +15,12 @@ type Error       = String
 type Errors      = [Error] 
 
 tVar2Ann :: TVar -> Annotation
-tVar2Ann (TVar v ex) = (v,ex)
+tVar2Ann (TVar v ex) = (v, ex)
 
 --------------------------------------------------------------------------------  
 -- The Type Inference Monad
 -------------------------------------------------------------------------------- 
-newtype TI t = TI (Annotations -> (Errors,t) )
+newtype TI t = TI (Annotations -> (Errors, t))
 
 instance Monad TI where
     return x   = TI (\ _ -> ([], x))
@@ -29,9 +29,8 @@ instance Monad TI where
                                   (erg, tb)       = gta ann
                               in (erf ++ erg, tb))
                        
-runTI        :: Annotations -> Program -> TI a -> (Errors, a)
-runTI anns _ (TI f) = (er, result)
- where (er,result) = f anns
+runTI :: Annotations -> Program -> TI a -> (Errors, a)
+runTI anns _ (TI f) = f anns
 
 timain :: Annotations -> Program -> (Errors, (Program, Annotations))
 timain anns p = runTI anns p (program p)

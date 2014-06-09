@@ -13,20 +13,18 @@ import Henk.AS
 program2string :: Program -> String
 program2string = render . program
 
+
 expr2string :: Expr -> String
 expr2string = render . expr
+
 
 var2string :: Var -> String
 var2string = render . var
 
+
 tVar2string :: TVar -> String
 tVar2string = render . boundVar
 
--- just for testing
---rules2string :: Rules -> String
---rules2string rs = concat $ map (\r -> (rule2string r)++"\n") rs
---rule2string :: Rule -> String
---rule2string (Rule ex1 ex2) = (expr2string ex1) ++ " --> "  ++ (expr2string ex2)  
  
 ----------------------------------------------------------------
 -- The Program
@@ -63,9 +61,8 @@ expr (PiExpr tv ex1)                              = sep [text "∏" <> bindVar t
 
 expr ex@(AppExpr ex1 ex2)                         =
     case tryListLiteral ex of
-        Nothing      -> left_parents ex1 (expr ex1) <+> right_parents ex2 (expr ex2)
-        Just []      -> text "[]"
-        Just (h : t) -> text "[" <> expr h <> foldr (\ a b -> text ", " <> expr a <> b) (text "") t <> text "]"
+        Nothing  -> left_parents ex1 (expr ex1) <+> right_parents ex2 (expr ex2)
+        Just lst -> text "[" <> comma_sep (map expr lst) <> text "]"
 
 expr (CaseExpr ex1 as _)                          = text "case" <+> expr ex1 <+> text "of" <+> indent (br_list (map alt as)) -- $$  text ":" <+> expr ex
 expr (VarExpr tv)                                 = boundVar tv
@@ -111,8 +108,8 @@ left_parents_function ex d =
 alt :: Alt -> Doc
 alt (Alt tc tcas dcas ex) =
                          boundVar tc
-                     <+> (if null tcas then empty else comma_sep (map boundVar tcas))
-                     <+> (if null dcas then empty else comma_sep (map boundVar dcas))
+                     <+> comma_sep (map boundVar tcas)
+                     <+> comma_sep (map boundVar dcas)
                      <+> text "=>"
                      <+> expr ex                                              
 
@@ -121,15 +118,16 @@ alt (Alt tc tcas dcas ex) =
 ----------------------------------------------------------------
 bindVar :: TVar ->  Doc
 bindVar tv = case tv of 
- TVar (Var v) (SortExpr Star)          -> text v                         -- un-annotated binding variables have type star    
- TVar (Anonymous) (SortExpr Star)      -> text "_" 
- TVar (Var v) e                        -> text v   <> text ":" <> expr e 
- TVar (Anonymous) e                    -> text "_" <> text ":" <> expr e
-                          
+    TVar (Var v) (SortExpr Star)     -> text v                         -- un-annotated binding variables have type star    
+    TVar (Anonymous) (SortExpr Star) -> text "_" 
+    TVar (Var v) e                   -> text v   <> text ":" <> expr e 
+    TVar (Anonymous) e               -> text "_" <> text ":" <> expr e
+
+
 boundVar :: TVar ->  Doc
 boundVar tv = case tv of
-   TVar v Unknown         -> var v -- <> text ": ? "                     -- the type of un-annotated bound variables should be derived from the context
-   TVar v _               -> var v -- <> text ":" <> expr e
+    TVar v Unknown         -> var v -- <> text ": ? "                     -- the type of un-annotated bound variables should be derived from the context
+    TVar v _               -> var v -- <> text ":" <> expr e
 
 
 var :: Var -> Doc
@@ -157,16 +155,17 @@ isList = isJust . tryListLiteral
 indent :: Doc -> Doc
 indent = nest 2
 
+
 vsep :: [Doc] -> Doc
 vsep xs  = vcat (map ($$ text "") xs)
 
+
 br_list :: [Doc] -> Doc
-br_list (x:xs) = sep $    [text "{" <+> x] 
-                       ++ foldr (\x' y -> [text ";" <+> x'] ++ y) [] xs
-                       ++ [text "}"]
-br_list []     = text "{}"
+br_list (x : xs) = sep $ [text "{" <+> x] ++ foldr (\x' y -> [text ";" <+> x'] ++ y) [] xs ++ [text "}"]
+br_list []       = text "{}"
+
 
 comma_sep :: [Doc] -> Doc 
 comma_sep (x : xs) = x <> foldr (\ x' y -> text "," <+> x' <> y) empty xs
-comma_sep [] = undefined
+comma_sep [] = empty
 

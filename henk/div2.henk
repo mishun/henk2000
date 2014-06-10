@@ -1,0 +1,13 @@
+
+let div2 : Nat -> Nat
+    = λ n:Nat . case n of
+        { Zero => Zero
+        ; Succ m => case m of
+            { Zero => Zero
+            ; Succ l => Succ (div2 l)
+            }
+        }
+
+let main : List Nat = map Nat Nat div2 (Cons Nat Zero (Cons Nat One (Cons Nat Two (Cons Nat Three (Cons Nat Four (Cons Nat Five (Nil Nat)))))))
+--let main : List Nat = map Nat Nat div2 [Zero, One, Two, Three, Four, Five, Six]
+

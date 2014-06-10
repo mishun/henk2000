@@ -12,66 +12,62 @@ module Henk.AS
     , Sort(..)
     ) where
 
--- Abstract Syntax --
 
--- The Program
-data Program
-  = Program [TDecl] [VDecl]
-    deriving (Show,Eq)
+data Program = Program [TDecl] [VDecl]
+    deriving (Show)
 
--- Data Type Declaration
-data TDecl
- = TDecl TCons [DCons]
-   deriving (Show,Eq)
+
+data TDecl = TDecl TCons [DCons]
+    deriving (Show)
+
 
 type TCons = TVar  -- Type Constructor
 type DCons = TVar  -- Data Constructor
 
--- Value Declaration
-data VDecl
- = VDecl TVar Expr
-   deriving (Show,Eq)
 
--- Expression
+data VDecl = VDecl TVar Expr
+    deriving (Show)
+
+
 data Expr
- = LamExpr TVar Expr		-- Lambda Abstraction
- | PiExpr TVar Expr		-- Pi
- | AppExpr Expr Expr		-- Application
- | CaseExpr Expr [Alt] Expr     -- Case
- | VarExpr TVar			-- Typed Variable
- | LitExpr Lit			-- Literal
- | SortExpr Sort                -- Sorts
- | Unknown                      -- for untyped variables
-   deriving (Show,Eq)
+    = LamExpr TVar Expr
+    | PiExpr TVar Expr
+    | AppExpr Expr Expr
+    | CaseExpr Expr [Alt] Expr
+    | VarExpr TVar
+    | LitExpr Lit
+    | SortExpr Sort
+    | Unknown
+    deriving (Show, Eq)
 
--- Typed Variable
-data TVar
- = TVar Var Expr
-   deriving (Show,Eq)
 
--- Variable
+data TVar = TVar Var Expr
+    deriving (Show, Eq)
+
+
 data Var
- = Var String
- | Anonymous
- deriving (Show,Eq)
+    = Var String
+    | Anonymous
+    deriving (Show, Eq)
 
--- Case Alternative
+
 data Alt
- = Alt TCons [TCA] [DCA] Expr
- deriving (Show,Eq)
+    = Alt TCons [TCA] [DCA] Expr
+    deriving (Show, Eq)
+
 
 type TCA = TVar -- type constructor argument
 type DCA = TVar -- data constructor argument
 
--- Literals
-data Lit
- = LitInt  Integer
- | IntType
- deriving (Show,Eq)
 
--- Sorts
+data Lit
+    = LitInt  Integer
+    | IntType
+    deriving (Show, Eq)
+
+
 data Sort
- = Star
- | Box
- | SortNum Integer
- deriving (Show,Eq)
+    = Star
+    | Box
+    | SortNum Integer
+    deriving (Show, Eq)

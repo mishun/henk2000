@@ -121,15 +121,16 @@ alt (Alt tc tcas dcas ex) =
 ----------------------------------------------------------------
 bindVar :: TVar ->  Doc
 bindVar tv = case tv of 
- TVar (Var v) (SortExpr Star)          -> text v                         -- un-annotated binding variables have type star    
- TVar (Anonymous) (SortExpr Star)      -> text "_" 
+ TVar (Var v) (SortExpr Star)          -> text v                         -- un-annotated binding variables have type star
+ TVar (Anonymous) (SortExpr Star)      -> text "_"
  TVar (Var v) e                        -> text v   <> text ":" <> expr e 
  TVar (Anonymous) e                    -> text "_" <> text ":" <> expr e
-                          
+
+
 boundVar :: TVar ->  Doc
 boundVar tv = case tv of
-   TVar v Unknown         -> var v -- <> text ": ? "                     -- the type of un-annotated bound variables should be derived from the context
-   TVar v _               -> var v -- <> text ":" <> expr e
+    TVar v Unknown         -> var v -- <> text ": ? "                     -- the type of un-annotated bound variables should be derived from the context
+    TVar v _               -> var v -- <> text ":" <> expr e
 
 
 var :: Var -> Doc
@@ -142,7 +143,7 @@ var Anonymous = text "_"
 ----------------------------------------------------------------
 
 tryListLiteral :: Expr -> Maybe [Expr]
-tryListLiteral (AppExpr (VarExpr (TVar (Var "Nil") _ )) _) = Just []
+tryListLiteral (AppExpr (VarExpr (TVar (Var "Nil") _)) _) = Just []
 tryListLiteral (AppExpr (AppExpr ( AppExpr (VarExpr (TVar (Var "Cons") _)) _) el) rest) = (el :) `fmap` tryListLiteral rest
 tryListLiteral _ = Nothing
 

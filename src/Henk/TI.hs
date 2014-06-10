@@ -9,18 +9,18 @@ import Henk.PP (var2string)
 import Henk.TermSupport (SSubst(..), applyStrongSubst)
 
 
-type Annotation  = (Var,Expr)
+type Annotation  = (Var, Expr)
 type Annotations = [Annotation]
 type Error       = String
 type Errors      = [Error] 
 
 tVar2Ann :: TVar -> Annotation
-tVar2Ann (TVar v ex) = (v,ex)
+tVar2Ann (TVar v ex) = (v, ex)
 
 --------------------------------------------------------------------------------  
 -- The Type Inference Monad
 -------------------------------------------------------------------------------- 
-newtype TI t = TI (Annotations -> (Errors,t) )
+newtype TI t = TI (Annotations -> (Errors, t))
 
 instance Monad TI where
     return x   = TI (\ _ -> ([], x))
@@ -63,7 +63,7 @@ lookup' v = do
 --------------------------------------------------------------------------------  
 -- Program
 --------------------------------------------------------------------------------
-program :: Program -> TI (Program,Annotations)
+program :: Program -> TI (Program, Annotations)
 program p@(Program tds0 vds0) = do
     (tds1, anns0) <- mapAndUnzipM (tDeclIdent p) tds0
     (tds, annss)  <- mapAndUnzipM (withAnns anns0 . tDeclBody p) tds1

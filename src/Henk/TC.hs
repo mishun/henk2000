@@ -16,28 +16,28 @@ import Henk.TypeSystems (Specification)
 -- The Type Check Monad
 -------------------------------------------------------------------------------- 
 type Error       = String
-type Errors      = [Error] 
+type Errors      = [Error]
 
-newtype TC t = TC (Errors,t)
+newtype TC t = TC (Errors, t)
 
 instance Monad TC where
- return x    = TC ([],x)
- f >>= g     = TC (let TC (erf,x)     = f 
-                       TC (erg,y)     = g x
-                       in (erf++erg,y))
-                       
-runTC        ::  TC a -> (Errors,a)
-runTC (TC (er,result)) = (er,result)
-  
+ return x    = TC ([], x)
+ f >>= g     = TC (let TC (erf, x)     = f 
+                       TC (erg, y)     = g x
+                   in (erf ++ erg, y))
 
-tcmain :: DeltaRules -> Specification -> Program -> (Errors,())
+runTC        :: TC a -> (Errors, a)
+runTC (TC (er, result)) = (er, result)
+
+
+tcmain :: DeltaRules -> Specification -> Program -> (Errors, ())
 tcmain dr sp p = runTC (program dr sp p)
 
-tcexpr :: DeltaRules -> Specification -> Expr -> (Errors,Expr)
+tcexpr :: DeltaRules -> Specification -> Expr -> (Errors, Expr)
 tcexpr dr sp ex = runTC (expr dr sp ex)
 
 addErrorMsg :: String -> TC ()
-addErrorMsg s = TC([s],())
+addErrorMsg s = TC ([s], ())
 
 
 type TypeCheck a b = DeltaRules -> Specification -> a -> TC b
@@ -55,7 +55,7 @@ program  dr sp (Program tds vds) = do
 --------------------------------------------------------------------------------  
 -- Type Declarations
 --------------------------------------------------------------------------------
-tDecl    :: TypeCheck TDecl ()
+tDecl :: TypeCheck TDecl ()
 tDecl dr sp td@(TDecl tv tvs) = do
     mapM_ (\ (TVar _ t) -> expr dr sp t) (tv : tvs)
     isOfRightForm dr sp td
@@ -182,8 +182,6 @@ ex_atcas =
     in tail . ex_atcas'
 
 
-
-
 --------------------------------------------------------------------------------  
 -- Fancy Error Messages
 --------------------------------------------------------------------------------                             
@@ -220,35 +218,32 @@ bindMsg tv tv_type ex ex_type
    "Type Expression             : " ++ expr2string ex_type           ++ "\n"
 
 noSortAMsg :: Expr -> Error
-noSortAMsg piExpr'@(PiExpr tv@(TVar _ a) _)
+noSortAMsg piExpr@(PiExpr tv@(TVar _ a) _)
  = "Type error in Pi expression" ++ "\n" ++  
-   "Pi expression               : " ++ expr2string piExpr'            ++ "\n" ++
+   "Pi expression               : " ++ expr2string piExpr            ++ "\n" ++
    "Variable                    : " ++ tVar2string tv                ++ "\n" ++
    "Type of variable            : " ++ expr2string a                 ++ "\n" ++
    "is not typable by a sort!"
 noSortAMsg _ = undefined
 
 noSortBMsg :: Expr -> Expr -> Error
-noSortBMsg piExpr'@(PiExpr (TVar _ _) b) btype
+noSortBMsg piExpr@(PiExpr (TVar _ _) b) btype
  = "Type error in Pi expression" ++ "\n" ++
-   "Pi expression               : " ++ expr2string piExpr'            ++ "\n" ++
+   "Pi expression               : " ++ expr2string piExpr            ++ "\n" ++
    "Body                        : " ++ expr2string b                 ++ "\n" ++
    "Type of body reduces to     : " ++ expr2string btype             ++ "\n" ++
    "but should be a sort!"
 noSortBMsg _ _ = undefined
 
 ruleMsg :: Expr -> Sort -> Sort  -> Error
-ruleMsg piExpr' s1 s2
+ruleMsg piExpr s1 s2
  = "Current type system is not strong enough!!\n" ++
    "One needs a rule of the form: (" ++ (expr2string $ SortExpr s1) ++ "," ++ (expr2string $ SortExpr s2) ++ ", _)" ++ "\n" ++
-   "To type                     : " ++ expr2string piExpr'  ++ "\n"
+   "To type                     : " ++ expr2string piExpr  ++ "\n"
 
 noAxiomMsg :: Sort -> Error
-noAxiomMsg s1
- = "There is no axiom to type sort: " ++ expr2string (SortExpr s1) ++ " !! \n"
+noAxiomMsg s1 = "There is no axiom to type sort: " ++ expr2string (SortExpr s1) ++ " !! \n"
 
 caseMsg :: Expr -> Error
-caseMsg ce
- = "Result expressions have different types in:\n" ++ 
-    expr2string ce
+caseMsg ce = "Result expressions have different types in: " ++ expr2string ce
 

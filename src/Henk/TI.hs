@@ -12,10 +12,12 @@ import Henk.TermSupport (SSubst(..), applyStrongSubst)
 type Annotation  = (Var, Expr)
 type Annotations = [Annotation]
 type Error       = String
-type Errors      = [Error] 
+type Errors      = [Error]
+
 
 tVar2Ann :: TVar -> Annotation
 tVar2Ann (TVar v ex) = (v, ex)
+
 
 --------------------------------------------------------------------------------  
 -- The Type Inference Monad

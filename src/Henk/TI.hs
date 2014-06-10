@@ -29,9 +29,8 @@ instance Monad TI where
                                   (erg, tb)       = gta ann
                               in (erf ++ erg, tb))
                        
-runTI        :: Annotations -> Program -> TI a -> (Errors, a)
-runTI anns _ (TI f) = (er, result)
- where (er,result) = f anns
+runTI :: Annotations -> Program -> TI a -> (Errors, a)
+runTI anns _ (TI f) = f anns
 
 timain :: Annotations -> Program -> (Errors, (Program, Annotations))
 timain anns p = runTI anns p (program p)
